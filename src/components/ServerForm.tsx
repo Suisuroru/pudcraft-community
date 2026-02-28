@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { MarkdownEditor, type MarkdownEditorHandle } from "@/components/MarkdownEditor";
 import { useToast } from "@/hooks/useToast";
 import { createServerSchema } from "@/lib/validation";
 
@@ -69,6 +70,7 @@ interface FormSnapshot {
   qqGroup: string;
   removeCurrentIcon: boolean;
   hasIconFile: boolean;
+  hasDirtyContent: boolean;
 }
 
 function normalizeTags(tags: string[] | undefined): string {
@@ -100,6 +102,8 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
   const [iconUploadResetKey, setIconUploadResetKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ServerFormErrors>({});
+  const [isContentDirty, setIsContentDirty] = useState(false);
+  const contentEditorRef = useRef<MarkdownEditorHandle | null>(null);
 
   useEffect(() => {
     setName(initialData?.name ?? "");
@@ -117,6 +121,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
     setRemoveCurrentIcon(false);
     setIconFile(null);
     setIconUploadResetKey((prev) => prev + 1);
+    setIsContentDirty(false);
   }, [
     initialData?.address,
     initialData?.content,
@@ -148,6 +153,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
       qqGroup: initialData?.qqGroup ?? "",
       removeCurrentIcon: false,
       hasIconFile: false,
+      hasDirtyContent: false,
     }),
     [
       initialData?.address,
@@ -175,6 +181,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
       qqGroup,
       removeCurrentIcon,
       hasIconFile: !!iconFile,
+      hasDirtyContent: isContentDirty,
     };
 
     return (
@@ -188,7 +195,8 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
       currentSnapshot.maxPlayers !== initialSnapshot.maxPlayers ||
       currentSnapshot.qqGroup !== initialSnapshot.qqGroup ||
       currentSnapshot.removeCurrentIcon !== initialSnapshot.removeCurrentIcon ||
-      currentSnapshot.hasIconFile !== initialSnapshot.hasIconFile
+      currentSnapshot.hasIconFile !== initialSnapshot.hasIconFile ||
+      currentSnapshot.hasDirtyContent !== initialSnapshot.hasDirtyContent
     );
   }, [
     address,
@@ -196,6 +204,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
     description,
     iconFile,
     initialSnapshot,
+    isContentDirty,
     maxPlayers,
     name,
     port,
@@ -236,6 +245,11 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
 
     setFieldErrors({});
 
+    const syncedContent = contentEditorRef.current?.syncMarkdown() ?? content;
+    if (syncedContent !== content) {
+      setContent(syncedContent);
+    }
+
     const parsed = createServerSchema.safeParse({
       name,
       address,
@@ -243,7 +257,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
       version,
       tags: selectedTags.join(","),
       description,
-      content,
+      content: syncedContent,
       maxPlayers: maxPlayers.trim() ? maxPlayers : undefined,
       qqGroup,
     });
@@ -369,7 +383,9 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
             className="m3-input mt-2 w-full"
             placeholder="例如：1.20.4"
           />
-          {fieldErrors.version && <p className="mt-1 text-xs text-red-400">{fieldErrors.version}</p>}
+          {fieldErrors.version && (
+            <p className="mt-1 text-xs text-red-400">{fieldErrors.version}</p>
+          )}
         </label>
 
         <div>
@@ -409,15 +425,20 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
 
         <label className="block text-sm text-slate-700">
           详细介绍（选填，支持 Markdown）
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            className="m3-input mt-2 min-h-[220px] w-full"
-            placeholder="介绍玩法、规则、加入方式等（最多 10000 字）"
-            maxLength={10000}
-          />
-          <p className="mt-1 text-xs text-slate-500">{content.length}/10000</p>
-          {fieldErrors.content && <p className="mt-1 text-xs text-red-400">{fieldErrors.content}</p>}
+          <div className="mt-2">
+            <MarkdownEditor
+              ref={contentEditorRef}
+              value={content}
+              onChange={setContent}
+              onDirtyChange={setIsContentDirty}
+              maxLength={10000}
+              placeholder="介绍玩法、规则、加入方式等（最多 10000 字）"
+              disabled={isSubmitting}
+            />
+          </div>
+          {fieldErrors.content && (
+            <p className="mt-1 text-xs text-red-400">{fieldErrors.content}</p>
+          )}
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -445,7 +466,9 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
               className="m3-input mt-2 w-full"
               placeholder="5-11 位数字"
             />
-            {fieldErrors.qqGroup && <p className="mt-1 text-xs text-red-400">{fieldErrors.qqGroup}</p>}
+            {fieldErrors.qqGroup && (
+              <p className="mt-1 text-xs text-red-400">{fieldErrors.qqGroup}</p>
+            )}
           </label>
         </div>
 
