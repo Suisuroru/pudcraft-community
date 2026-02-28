@@ -13,7 +13,7 @@ interface ApiPayload {
   error?: string;
 }
 
-const MAX_MRPACK_SIZE_MB = 500;
+const MAX_MRPACK_SIZE_MB = 50;
 const MAX_MRPACK_SIZE_BYTES = MAX_MRPACK_SIZE_MB * 1024 * 1024;
 
 function toApiPayload(raw: unknown): ApiPayload {
