@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { createNotification } from "@/lib/notification";
 import { rateLimit } from "@/lib/rate-limit";
+import { getPublicUrl } from "@/lib/storage";
 import type { ServerComment } from "@/lib/types";
 import { createCommentSchema, queryCommentsSchema, serverIdSchema } from "@/lib/validation";
 
@@ -113,7 +114,7 @@ function mapComments(comments: Array<{
       id: comment.author.id,
       name: comment.author.name,
       email: comment.author.email,
-      image: comment.author.image,
+      image: getPublicUrl(comment.author.image),
     },
     replies: comment.replies.map((reply) => ({
       id: reply.id,
@@ -123,7 +124,7 @@ function mapComments(comments: Array<{
         id: reply.author.id,
         name: reply.author.name,
         email: reply.author.email,
-        image: reply.author.image,
+        image: getPublicUrl(reply.author.image),
       },
     })),
   }));
@@ -312,7 +313,7 @@ export async function POST(request: Request, { params }: RouteContext) {
             id: comment.author.id,
             name: comment.author.name,
             email: comment.author.email,
-            image: comment.author.image,
+            image: getPublicUrl(comment.author.image),
           },
         },
       },

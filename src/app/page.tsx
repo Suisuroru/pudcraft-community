@@ -3,6 +3,7 @@ import { HomePageClient } from "@/components/HomePageClient";
 import { serializeJsonForScript } from "@/lib/json";
 import type { ServerSort } from "@/components/SortButtons";
 import { prisma } from "@/lib/db";
+import { getPublicUrl } from "@/lib/storage";
 import type { ServerListItem } from "@/lib/types";
 
 const SITE_URL = "https://pudcraft.cn";
@@ -120,7 +121,7 @@ async function getInitialServerList(query: HomeQuery): Promise<{
     port: server.port,
     description: server.description,
     tags: server.tags,
-    iconUrl: server.iconUrl,
+    iconUrl: getPublicUrl(server.iconUrl),
     favoriteCount: server.favoriteCount,
     isVerified: server.isVerified,
     verifiedAt: server.verifiedAt?.toISOString() ?? null,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { getPublicUrl } from "@/lib/storage";
 import type { ServerListItem } from "@/lib/types";
 import { userIdSchema } from "@/lib/validation";
 
@@ -48,7 +49,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       port: server.port,
       description: server.description,
       tags: server.tags,
-      iconUrl: server.iconUrl,
+      iconUrl: getPublicUrl(server.iconUrl),
       favoriteCount: server.favoriteCount,
       isVerified: server.isVerified,
       verifiedAt: server.verifiedAt?.toISOString() ?? null,
@@ -67,7 +68,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       data: {
         id: user.id,
         name: user.name,
-        image: user.image,
+        image: getPublicUrl(user.image),
         bio: user.bio,
         createdAt: user.createdAt.toISOString(),
         servers,

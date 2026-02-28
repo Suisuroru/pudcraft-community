@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { createNotification } from "@/lib/notification";
 import { requireAdmin, isAdminError } from "@/lib/admin";
 import { serverIdSchema, adminServerActionSchema } from "@/lib/validation";
-import { deleteFile, getObjectKeyFromUrl } from "@/lib/storage";
+import { deleteFile, deleteObject } from "@/lib/storage";
 
 interface ReviewNotificationParams {
   action: "approve" | "reject";
@@ -170,7 +170,14 @@ export async function DELETE(
 
     const server = await prisma.server.findUnique({
       where: { id: parsedId.data },
-      select: { id: true, iconUrl: true },
+      select: {
+        id: true,
+        iconUrl: true,
+        imageUrl: true,
+        modpacks: {
+          select: { fileKey: true },
+        },
+      },
     });
 
     if (!server) {
@@ -185,13 +192,30 @@ export async function DELETE(
     ]);
 
     if (server.iconUrl) {
-      const key = getObjectKeyFromUrl(server.iconUrl);
-      if (key) {
-        try {
-          await deleteFile(key);
-        } catch (error) {
-          logger.warn("[api/admin/servers/[id]] delete icon failed", error);
-        }
+      try {
+        await deleteFile(server.iconUrl);
+      } catch (error) {
+        logger.warn("[api/admin/servers/[id]] delete icon failed", error);
+      }
+    }
+
+    if (server.imageUrl) {
+      try {
+        await deleteFile(server.imageUrl);
+      } catch (error) {
+        logger.warn("[api/admin/servers/[id]] delete image failed", error);
+      }
+    }
+
+    for (const modpack of server.modpacks) {
+      try {
+        await deleteObject(modpack.fileKey);
+      } catch (error) {
+        logger.warn("[api/admin/servers/[id]] delete modpack file failed", {
+          serverId: server.id,
+          fileKey: modpack.fileKey,
+          reason: error instanceof Error ? error.message : "unknown",
+        });
       }
     }
 

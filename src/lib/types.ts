@@ -38,6 +38,7 @@ export interface ServerDetail extends ServerListItem {
   ownerId: string | null;
   content: string | null;
   iconUrl: string | null;
+  /** 服务器封面图（保留字段，DB 中存 key，API 返回 public URL） */
   imageUrl: string | null;
   favoriteCount: number;
   createdAt: string;

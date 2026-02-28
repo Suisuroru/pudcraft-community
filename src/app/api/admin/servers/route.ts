@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { requireAdmin, isAdminError } from "@/lib/admin";
 import { adminQueryServersSchema } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
+import { getPublicUrl } from "@/lib/storage";
 import type { AdminServerItem } from "@/lib/types";
 
 type ServerWithOwner = Prisma.ServerGetPayload<{
@@ -123,7 +124,7 @@ export async function GET(request: Request) {
       name: server.name,
       host: server.host,
       port: server.port,
-      iconUrl: server.iconUrl,
+      iconUrl: getPublicUrl(server.iconUrl),
       status: server.status,
       rejectReason: server.rejectReason,
       isVerified: server.isVerified,

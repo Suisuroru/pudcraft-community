@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
 import {
   deleteFile,
   deleteObject,
-  getObjectKeyFromUrl,
+  getPublicUrl,
   ImageValidationError,
   uploadServerIcon,
   validateImageFile,
@@ -38,21 +38,20 @@ function hasField<T extends object>(object: T, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
 
-async function deleteIconIfExists(iconUrl: string | null): Promise<void> {
-  if (!iconUrl) {
-    return;
-  }
-
-  const key = getObjectKeyFromUrl(iconUrl);
-  if (!key) {
+async function deleteServerAssetIfExists(
+  keyOrUrl: string | null,
+  assetLabel: "icon" | "image",
+): Promise<void> {
+  if (!keyOrUrl) {
     return;
   }
 
   try {
-    await deleteFile(key);
+    await deleteFile(keyOrUrl);
   } catch (error) {
-    logger.warn("[api/servers/[id]] delete old icon failed", {
-      iconUrl,
+    logger.warn("[api/servers/[id]] delete server asset failed", {
+      asset: assetLabel,
+      key: keyOrUrl,
       reason: resolveErrorMessage(error, "unknown"),
     });
   }
@@ -105,8 +104,8 @@ export async function GET(
       content: server.content,
       ownerId: server.ownerId,
       tags: server.tags,
-      iconUrl: server.iconUrl,
-      imageUrl: server.imageUrl,
+      iconUrl: getPublicUrl(server.iconUrl),
+      imageUrl: getPublicUrl(server.imageUrl),
       favoriteCount: server.favoriteCount,
       isVerified: server.isVerified,
       verifiedAt: server.verifiedAt?.toISOString() ?? null,
@@ -262,17 +261,17 @@ export async function PATCH(
         })
       : (existing.content ?? null);
 
-    let nextIconUrl: string | null | undefined = undefined;
+    let nextIconKey: string | null | undefined = undefined;
     let warning: string | undefined;
 
     if (updateInput.removeIcon) {
-      nextIconUrl = null;
+      nextIconKey = null;
     }
 
     if (iconBuffer && iconMimeType) {
       try {
-        const uploadedUrl = await uploadServerIcon(iconBuffer, existing.id, iconMimeType);
-        nextIconUrl = uploadedUrl;
+        const uploadedKey = await uploadServerIcon(iconBuffer, existing.id, iconMimeType);
+        nextIconKey = uploadedKey;
       } catch (error) {
         warning = "图标上传失败，已保留原图标";
         logger.error("[api/servers/[id]] upload icon failed", {
@@ -293,8 +292,8 @@ export async function PATCH(
       content: nextContent,
     };
 
-    if (nextIconUrl !== undefined) {
-      nextData.iconUrl = nextIconUrl;
+    if (nextIconKey !== undefined) {
+      nextData.iconUrl = nextIconKey;
     }
 
     nextData.maxPlayers = nextMaxPlayers;
@@ -341,9 +340,9 @@ export async function PATCH(
 
     const shouldDeleteOldIcon =
       existing.iconUrl &&
-      (nextIconUrl === null || (typeof nextIconUrl === "string" && nextIconUrl !== existing.iconUrl));
+      (nextIconKey === null || (typeof nextIconKey === "string" && nextIconKey !== existing.iconUrl));
     if (shouldDeleteOldIcon) {
-      await deleteIconIfExists(existing.iconUrl);
+      await deleteServerAssetIfExists(existing.iconUrl, "icon");
     }
 
     return NextResponse.json({
@@ -386,6 +385,7 @@ export async function DELETE(
         id: true,
         ownerId: true,
         iconUrl: true,
+        imageUrl: true,
       },
     });
 
@@ -412,7 +412,8 @@ export async function DELETE(
       }),
     ]);
 
-    await deleteIconIfExists(existing.iconUrl);
+    await deleteServerAssetIfExists(existing.iconUrl, "icon");
+    await deleteServerAssetIfExists(existing.imageUrl, "image");
     for (const item of modpackFiles) {
       try {
         await deleteObject(item.fileKey);

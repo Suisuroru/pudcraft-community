@@ -7,6 +7,7 @@ import { ServerCard } from "@/components/ServerCard";
 import { UserAvatar } from "@/components/UserAvatar";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getPublicUrl } from "@/lib/storage";
 import type { ServerListItem } from "@/lib/types";
 import { userIdSchema } from "@/lib/validation";
 
@@ -104,7 +105,7 @@ export default async function UserProfilePage({ params }: PageProps) {
     port: server.port,
     description: server.description,
     tags: server.tags,
-    iconUrl: server.iconUrl,
+    iconUrl: getPublicUrl(server.iconUrl),
     isVerified: server.isVerified,
     verifiedAt: server.verifiedAt?.toISOString() ?? null,
     status: {
@@ -123,7 +124,7 @@ export default async function UserProfilePage({ params }: PageProps) {
       <section className="m3-surface p-4 sm:p-6">
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
-            <UserAvatar src={user.image} name={user.name} email={user.email} className="h-20 w-20" />
+            <UserAvatar src={getPublicUrl(user.image)} name={user.name} email={user.email} className="h-20 w-20" />
             <div>
               <h1 className="text-2xl font-semibold text-slate-900">{displayName}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">

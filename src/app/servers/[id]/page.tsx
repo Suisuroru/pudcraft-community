@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db";
 import { serializeJsonForScript } from "@/lib/json";
 import { timeAgo } from "@/lib/time";
 import type { ServerComment } from "@/lib/types";
+import { getPublicUrl } from "@/lib/storage";
 import { serverIdSchema } from "@/lib/validation";
 
 const SITE_URL = "https://pudcraft.cn";
@@ -84,7 +85,7 @@ function mapComments(
       id: comment.author.id,
       name: comment.author.name,
       email: comment.author.email,
-      image: comment.author.image,
+      image: getPublicUrl(comment.author.image),
     },
     replies: comment.replies.map((reply) => ({
       id: reply.id,
@@ -94,7 +95,7 @@ function mapComments(
         id: reply.author.id,
         name: reply.author.name,
         email: reply.author.email,
-        image: reply.author.image,
+        image: getPublicUrl(reply.author.image),
       },
     })),
   }));
@@ -203,7 +204,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${server.name} | PudCraft Community`,
       description: server.description?.trim() || `${server.name} Minecraft 服务器`,
-      images: server.iconUrl ? [{ url: toAbsoluteUrl(server.iconUrl) }] : [],
+      images: server.iconUrl ? [{ url: toAbsoluteUrl(getPublicUrl(server.iconUrl) ?? "/default-server-icon.png") }] : [],
     },
   };
 }
@@ -287,7 +288,7 @@ export default async function ServerDetailPage({ params }: Props) {
     name: server.name,
     description: server.description || `${server.name} Minecraft 服务器`,
     url: `${SITE_URL}/servers/${server.id}`,
-    image: [toAbsoluteUrl(server.iconUrl || "/default-server-icon.png")],
+    image: [toAbsoluteUrl(getPublicUrl(server.iconUrl) ?? "/default-server-icon.png")],
     game: {
       "@type": "VideoGame",
       name: "Minecraft",
@@ -369,7 +370,7 @@ export default async function ServerDetailPage({ params }: Props) {
           <div className="flex min-w-0 items-center gap-3">
             <span className="inline-flex h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
               <Image
-                src={server.iconUrl || "/default-server-icon.png"}
+                src={getPublicUrl(server.iconUrl) ?? "/default-server-icon.png"}
                 alt={`${server.name} 图标`}
                 width={64}
                 height={64}

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import {
   deleteFile,
-  getObjectKeyFromUrl,
+  getPublicUrl,
   ImageValidationError,
   uploadAvatar,
   validateImageFile,
@@ -61,7 +61,7 @@ export async function GET() {
       id: user.id,
       name: user.name,
       email: user.email,
-      image: user.image,
+      image: getPublicUrl(user.image),
       bio: user.bio,
     };
 
@@ -147,11 +147,11 @@ export async function PATCH(request: Request) {
       data.bio = parsed.data.bio && parsed.data.bio.length > 0 ? parsed.data.bio : null;
     }
 
-    let nextImageUrl: string | null | undefined;
+    let nextImageKey: string | null | undefined;
     if (avatarBuffer && avatarMimeType) {
       try {
-        nextImageUrl = await uploadAvatar(avatarBuffer, existingUser.id, avatarMimeType);
-        data.image = nextImageUrl;
+        nextImageKey = await uploadAvatar(avatarBuffer, existingUser.id, avatarMimeType);
+        data.image = nextImageKey;
       } catch (error) {
         logger.error("[api/user/profile] Upload avatar failed", {
           userId: existingUser.id,
@@ -167,7 +167,7 @@ export async function PATCH(request: Request) {
           id: existingUser.id,
           name: existingUser.name,
           email: existingUser.email,
-          image: existingUser.image,
+          image: getPublicUrl(existingUser.image),
           bio: existingUser.bio,
         } satisfies ProfileResponseData,
       });
@@ -186,22 +186,18 @@ export async function PATCH(request: Request) {
     });
 
     if (
-      typeof nextImageUrl === "string" &&
+      typeof nextImageKey === "string" &&
       existingUser.image &&
-      existingUser.image !== nextImageUrl
+      existingUser.image !== nextImageKey
     ) {
-      const oldKey = getObjectKeyFromUrl(existingUser.image);
-      const newKey = getObjectKeyFromUrl(nextImageUrl);
-      if (oldKey && oldKey !== newKey) {
-        try {
-          await deleteFile(oldKey);
-        } catch (error) {
-          logger.warn("[api/user/profile] delete old avatar failed", {
-            userId: existingUser.id,
-            key: oldKey,
-            reason: error instanceof Error ? error.message : "unknown",
-          });
-        }
+      try {
+        await deleteFile(existingUser.image);
+      } catch (error) {
+        logger.warn("[api/user/profile] delete old avatar failed", {
+          userId: existingUser.id,
+          key: existingUser.image,
+          reason: error instanceof Error ? error.message : "unknown",
+        });
       }
     }
 
@@ -210,7 +206,7 @@ export async function PATCH(request: Request) {
         id: updated.id,
         name: updated.name,
         email: updated.email,
-        image: updated.image,
+        image: getPublicUrl(updated.image),
         bio: updated.bio,
       } satisfies ProfileResponseData,
     });

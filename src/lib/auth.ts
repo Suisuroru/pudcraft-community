@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
+import { getPublicUrl } from "@/lib/storage";
 import { loginSchema } from "@/lib/validation";
 
 const DUMMY_PASSWORD_HASH = "$2b$12$7MsJQQUhISt6L0QkQlym9eQygPzy5Q89vgzW0fvkYl9wH8r2raVGm";
@@ -89,7 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user.id,
           name: user.name,
           email: user.email,
-          image: user.image,
+          image: getPublicUrl(user.image),
         };
       },
     }),
@@ -118,7 +119,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (latestUser) {
             token.name = latestUser.name;
             token.email = latestUser.email;
-            token.picture = latestUser.image;
+            token.picture = getPublicUrl(latestUser.image);
             token.role = latestUser.role;
           }
 

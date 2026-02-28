@@ -13,7 +13,8 @@ interface ApiPayload {
   error?: string;
 }
 
-const MAX_MRPACK_SIZE_MB = 300;
+const MAX_MRPACK_SIZE_MB = 500;
+const MAX_MRPACK_SIZE_BYTES = MAX_MRPACK_SIZE_MB * 1024 * 1024;
 
 function toApiPayload(raw: unknown): ApiPayload {
   if (typeof raw !== "object" || raw === null) {
@@ -151,6 +152,11 @@ export default function ServerModpacksPage() {
 
     if (!selectedFile) {
       toast.error("请先选择 .mrpack 文件");
+      return;
+    }
+
+    if (selectedFile.size > MAX_MRPACK_SIZE_BYTES) {
+      toast.error(`整合包大小不能超过 ${MAX_MRPACK_SIZE_MB}MB`);
       return;
     }
 

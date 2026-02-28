@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { requireAdmin, isAdminError } from "@/lib/admin";
 import { adminQueryUsersSchema } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
+import { getPublicUrl } from "@/lib/storage";
 import type { AdminUserItem } from "@/lib/types";
 
 /**
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
       id: user.id,
       name: user.name,
       email: user.email,
-      image: user.image,
+      image: getPublicUrl(user.image),
       role: user.role,
       isBanned: user.isBanned,
       banReason: user.banReason,

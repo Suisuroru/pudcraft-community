@@ -1,7 +1,10 @@
+// Fix: favorites/route.ts:21 - 改用显式 select 替换 include:{ server:true }，
+//   避免 verifyToken/verifyExpiresAt/verifyUserId 等敏感字段被过度拉取
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { getPublicUrl } from "@/lib/storage";
 import type { ServerListItem } from "@/lib/types";
 
 /**
@@ -19,7 +22,28 @@ export async function GET() {
     const favorites = await prisma.favorite.findMany({
       where: { userId },
       include: {
-        server: true,
+        server: {
+          select: {
+            id: true,
+            name: true,
+            host: true,
+            port: true,
+            description: true,
+            tags: true,
+            iconUrl: true,
+            favoriteCount: true,
+            isVerified: true,
+            verifiedAt: true,
+            isOnline: true,
+            playerCount: true,
+            maxPlayers: true,
+            latency: true,
+            lastPingedAt: true,
+            updatedAt: true,
+            status: true,
+            rejectReason: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -33,7 +57,7 @@ export async function GET() {
         port: server.port,
         description: server.description,
         tags: server.tags,
-        iconUrl: server.iconUrl,
+        iconUrl: getPublicUrl(server.iconUrl),
         favoriteCount: server.favoriteCount,
         isVerified: server.isVerified,
         verifiedAt: server.verifiedAt?.toISOString() ?? null,

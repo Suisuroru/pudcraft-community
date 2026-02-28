@@ -6,7 +6,7 @@ import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
-import { ImageValidationError, uploadServerIcon, validateImageFile } from "@/lib/storage";
+import { getPublicUrl, ImageValidationError, uploadServerIcon, validateImageFile } from "@/lib/storage";
 import { buildServerContent } from "@/lib/serverContent";
 import { createServerSchema, queryServersSchema } from "@/lib/validation";
 import type { ServerListItem } from "@/lib/types";
@@ -155,7 +155,7 @@ export async function GET(request: Request) {
       port: server.port,
       description: server.description,
       tags: server.tags,
-      iconUrl: server.iconUrl,
+      iconUrl: getPublicUrl(server.iconUrl),
       favoriteCount: server.favoriteCount,
       isVerified: server.isVerified,
       verifiedAt: server.verifiedAt?.toISOString() ?? null,
@@ -322,13 +322,13 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    let iconUrl: string | null = null;
+    let iconKey: string | null = null;
     if (iconBuffer && iconMimeType) {
       try {
-        iconUrl = await uploadServerIcon(iconBuffer, server.id, iconMimeType);
+        iconKey = await uploadServerIcon(iconBuffer, server.id, iconMimeType);
         await prisma.server.update({
           where: { id: server.id },
-          data: { iconUrl },
+          data: { iconUrl: iconKey },
         });
       } catch (error) {
         logger.error("[api/servers] Upload server icon failed", {
@@ -350,7 +350,7 @@ export async function POST(request: Request) {
           description: server.description,
           tags: server.tags,
           ownerId: server.ownerId,
-          iconUrl,
+          iconUrl: getPublicUrl(iconKey),
         },
       },
       { status: 201 },
