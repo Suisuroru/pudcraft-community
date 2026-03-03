@@ -1,18 +1,14 @@
 FROM node:22-alpine AS base
 
-# Stage 1: Install dependencies
-FROM base AS deps
+# Stage 1: Build application
+FROM base AS builder
 RUN corepack enable
 WORKDIR /app
+
 COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 RUN pnpm install --frozen-lockfile
 
-# Stage 2: Build application
-FROM base AS builder
-RUN corepack enable
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -27,7 +23,7 @@ ENV SMTP_PASS="dummy"
 ENV SMTP_FROM="Build <build@example.com>"
 
 RUN pnpm build
-RUN ./node_modules/.bin/esbuild src/worker/index.ts \
+RUN pnpm exec esbuild src/worker/index.ts \
     --bundle \
     --platform=node \
     --target=node22 \
@@ -35,7 +31,7 @@ RUN ./node_modules/.bin/esbuild src/worker/index.ts \
     --tsconfig=tsconfig.json \
     --external:@prisma/client
 
-# Stage 3: Production runner
+# Stage 2: Production runner
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
