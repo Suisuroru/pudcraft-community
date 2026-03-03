@@ -39,6 +39,9 @@ public/uploads/*
 !public/uploads/avatars/.gitkeep
 !public/uploads/server-icons/.gitkeep
 
+# docker
+docker-compose.yml
+
 # misc
 *.tsbuildinfo
 next-env.d.ts
