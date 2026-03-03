@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { moderateFields } from "@/lib/moderation";
+import { getClientIp } from "@/lib/request-ip";
 import {
   deleteFile,
   getPublicUrl,
@@ -117,6 +119,24 @@ export async function PATCH(request: Request) {
         { error: "校验失败", details: parsed.error.flatten() },
         { status: 400 },
       );
+    }
+
+    // ─── 内容审查 ───
+    const fieldsToCheck: Record<string, string> = {};
+    if (parsed.data.name) fieldsToCheck["用户名"] = parsed.data.name;
+    if (parsed.data.bio) fieldsToCheck["简介"] = parsed.data.bio;
+
+    if (Object.keys(fieldsToCheck).length > 0) {
+      const modResult = await moderateFields(fieldsToCheck, "username", {
+        userId,
+        userIp: getClientIp(request),
+      });
+      if (!modResult.passed) {
+        return NextResponse.json(
+          { error: "用户名或简介包含违规内容", detail: modResult.reason },
+          { status: 422 },
+        );
+      }
     }
 
     const avatarField = formData.get("avatar");

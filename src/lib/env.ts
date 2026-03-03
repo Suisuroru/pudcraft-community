@@ -29,6 +29,34 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 
+// ─── 内容审查配置 ────────────────────────────────────
+// MODERATION_API_KEY   通用 Key（优先），兼容旧名 DEEPSEEK_API_KEY
+// MODERATION_BASE_URL  API 根地址，默认 https://api.deepseek.com
+// MODERATION_MODE      openai（兼容协议）| anthropic，默认 openai
+// MODERATION_MODEL     模型名，默认 deepseek-chat
+const moderationEnvSchema = z.object({
+  MODERATION_API_KEY: z.string().min(1).optional(),
+  DEEPSEEK_API_KEY: z.string().min(1).optional(), // 向后兼容
+  MODERATION_ENABLED: z.string().optional().default("true"),
+  MODERATION_BASE_URL: z.string().url().optional().default("https://api.deepseek.com"),
+  MODERATION_MODE: z.enum(["openai", "anthropic"]).optional().default("openai"),
+  MODERATION_MODEL: z.string().optional().default("deepseek-chat"),
+});
+
+const _modParsed = moderationEnvSchema.safeParse(process.env);
+const _modRaw = _modParsed.success ? _modParsed.data : null;
+const _modApiKey = _modRaw
+  ? (_modRaw.MODERATION_API_KEY ?? _modRaw.DEEPSEEK_API_KEY ?? "")
+  : "";
+
+export const moderationEnv = {
+  apiKey: _modApiKey,
+  enabled: Boolean(_modRaw && _modRaw.MODERATION_ENABLED === "true" && _modApiKey),
+  baseUrl: _modRaw?.MODERATION_BASE_URL ?? "https://api.deepseek.com",
+  mode: (_modRaw?.MODERATION_MODE ?? "openai") as "openai" | "anthropic",
+  model: _modRaw?.MODERATION_MODEL ?? "deepseek-chat",
+};
+
 function parseBooleanEnv(value: string | undefined): boolean {
   if (!value) {
     return false;

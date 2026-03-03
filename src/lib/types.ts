@@ -232,3 +232,28 @@ export interface AdminDashboardStats {
   onlineServerCount: number;
   bannedUserCount: number;
 }
+
+/** 管理后台 - 审查日志项 */
+export interface AdminModerationLogItem {
+  id: string;
+  createdAt: string;
+  contentType: string;
+  contentId: string | null;
+  contentSnippet: string;
+  passed: boolean;
+  aiCategory: string | null;
+  aiReason: string | null;
+  userId: string | null;
+  userName: string | null;
+  userIp: string | null;
+  reviewed: boolean;
+  adminNote: string | null;
+}
+
+/** 管理后台 - 审查统计 */
+export interface AdminModerationStats {
+  total: number;
+  failed: number;
+  passed: number;
+  unreviewed: number;
+}

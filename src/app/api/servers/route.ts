@@ -13,6 +13,7 @@ import {
   uploadServerIcon,
   validateImageFile,
 } from "@/lib/storage";
+import { moderateFields } from "@/lib/moderation";
 import { buildServerContent } from "@/lib/serverContent";
 import { createServerSchema, queryServersSchema } from "@/lib/validation";
 import type { ServerListItem } from "@/lib/types";
@@ -235,6 +236,25 @@ export async function POST(request: Request) {
 
     const { name, address, port, version, tags, description, content, maxPlayers, qqGroup } =
       parsed.data;
+
+    // ─── 内容审查 ───
+    const clientIpForMod = getClientIp(request);
+    const modResult = await moderateFields(
+      {
+        名称: name,
+        描述: description ?? "",
+        标签: tags?.join(" ") ?? "",
+      },
+      "server",
+      { userId, userIp: clientIpForMod },
+    );
+    if (!modResult.passed) {
+      return NextResponse.json(
+        { error: "内容包含违规信息，请修改后重新提交", detail: modResult.reason },
+        { status: 422 },
+      );
+    }
+
     const normalizedHost = address.toLowerCase().trim();
 
     const existingServer = await prisma.server.findFirst({

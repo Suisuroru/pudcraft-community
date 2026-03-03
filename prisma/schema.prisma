@@ -28,13 +28,14 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  accounts      Account[]
-  sessions      Session[]
-  servers       Server[]
-  comments      Comment[]
-  favorites     Favorite[]
-  modpacks      Modpack[]
-  notifications Notification[]
+  accounts       Account[]
+  sessions       Session[]
+  servers        Server[]
+  comments       Comment[]
+  favorites      Favorite[]
+  modpacks       Modpack[]
+  notifications  Notification[]
+  moderationLogs ModerationLog[]
 
   @@map("users")
 }
@@ -234,6 +235,39 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+/// 内容审查日志 —— 记录每次 AI 审查的结果，供管理员查看和复核
+model ModerationLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// 被审查的内容类型：server | modpack | username | comment
+  contentType    String  @map("content_type")
+  /// 关联的内容 ID（如服务器 ID、评论 ID 等，username/bio 无独立 ID 时为 null）
+  contentId      String? @map("content_id")
+  /// 被审查的原始文本（截断存储）
+  contentSnippet String  @map("content_snippet") @db.VarChar(500)
+
+  /// AI 审查结果
+  passed     Boolean
+  aiCategory String? @map("ai_category")
+  aiReason   String? @map("ai_reason")
+
+  /// 提交者信息
+  userId String? @map("user_id")
+  userIp String? @map("user_ip")
+
+  /// 管理员复核
+  reviewed  Boolean @default(false)
+  adminNote String? @map("admin_note")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([contentType, passed])
+  @@index([createdAt])
+  @@index([reviewed, passed])
+  @@map("moderation_logs")
 }
 
 // ============================================
