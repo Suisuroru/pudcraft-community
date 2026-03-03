@@ -23,7 +23,10 @@ ENV SMTP_PASS="dummy"
 ENV SMTP_FROM="Build <build@example.com>"
 
 RUN pnpm build
-RUN npx esbuild src/worker/index.ts \
+
+# esbuild binary is unavailable via pnpm strict mode; install globally
+RUN npm install -g esbuild && \
+    esbuild src/worker/index.ts \
     --bundle \
     --platform=node \
     --target=node24 \
