@@ -15,6 +15,17 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Dummy env vars for Next.js build-time page collection (not used at runtime)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV NEXTAUTH_SECRET="build-time-placeholder-key-32chars"
+ENV REDIS_HOST="localhost"
+ENV SMTP_HOST="localhost"
+ENV SMTP_PORT="465"
+ENV SMTP_USER="build@example.com"
+ENV SMTP_PASS="dummy"
+ENV SMTP_FROM="Build <build@example.com>"
+
 RUN pnpm build
 RUN pnpm exec esbuild src/worker/index.ts \
     --bundle \
