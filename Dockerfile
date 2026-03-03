@@ -22,14 +22,7 @@ ENV SMTP_USER="build@example.com"
 ENV SMTP_PASS="dummy"
 ENV SMTP_FROM="Build <build@example.com>"
 
-RUN pnpm build
-RUN pnpm exec esbuild src/worker/index.ts \
-    --bundle \
-    --platform=node \
-    --target=node22 \
-    --outfile=dist/worker.js \
-    --tsconfig=tsconfig.json \
-    --external:@prisma/client
+RUN pnpm build && pnpm run build:worker
 
 # Stage 2: Production runner
 FROM base AS runner
