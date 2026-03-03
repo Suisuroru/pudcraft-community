@@ -3,8 +3,10 @@ import { auth } from "@/lib/auth";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { moderateContent } from "@/lib/moderation";
 import { createNotification } from "@/lib/notification";
 import { rateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/request-ip";
 import { canAccessServer } from "@/lib/server-access";
 import { getPublicUrl } from "@/lib/storage";
 import type { ServerComment } from "@/lib/types";
@@ -284,6 +286,18 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     const { content, parentId } = parsedBody.data;
+
+    // ─── 内容审查 ───
+    const modResult = await moderateContent(content, "comment", {
+      userId,
+      userIp: getClientIp(request),
+    });
+    if (!modResult.passed) {
+      return NextResponse.json(
+        { error: "评论包含违规内容，请修改后重试", detail: modResult.reason },
+        { status: 422 },
+      );
+    }
 
     if (parentId) {
       const parent = await prisma.comment.findUnique({

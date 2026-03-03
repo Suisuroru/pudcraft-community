@@ -11,6 +11,8 @@ import {
   parseMrpackFile,
   validateMrpackFile,
 } from "@/lib/modpack";
+import { moderateFields } from "@/lib/moderation";
+import { getClientIp } from "@/lib/request-ip";
 import { canAccessServer } from "@/lib/server-access";
 import { deleteObject, uploadModpack } from "@/lib/storage";
 import { serverIdSchema, uploadModpackSchema } from "@/lib/validation";
@@ -181,6 +183,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
     const hashes = hashFileBuffer(fileBuffer);
+
+    // ─── 内容审查 ───
+    const modResult = await moderateFields(
+      {
+        名称: parsedPack.name || getFallbackModpackName(fileField.name),
+        描述: parsedPack.summary ?? "",
+      },
+      "modpack",
+      { userId, userIp: getClientIp(request) },
+    );
+    if (!modResult.passed) {
+      return NextResponse.json(
+        { error: "内容包含违规信息", detail: modResult.reason },
+        { status: 422 },
+      );
+    }
 
     uploadedFileKey = await uploadModpack(fileBuffer, server.id);
 

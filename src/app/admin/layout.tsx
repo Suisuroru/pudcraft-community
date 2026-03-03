@@ -37,6 +37,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           >
             用户管理
           </Link>
+          <Link
+            href="/admin/moderation"
+            className="block rounded-lg px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            内容审查
+          </Link>
         </nav>
       </aside>
 
@@ -50,6 +56,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </Link>
         <Link href="/admin/users" className="m3-chip text-xs">
           用户
+        </Link>
+        <Link href="/admin/moderation" className="m3-chip text-xs">
+          审查
         </Link>
       </div>
 

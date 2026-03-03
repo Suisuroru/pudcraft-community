@@ -254,6 +254,20 @@ export const adminUserActionSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+/** 管理后台审查日志列表查询参数 */
+export const adminQueryModerationLogsSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  filter: z.enum(["all", "failed", "passed", "unreviewed"]).default("failed"),
+  type: z.enum(["all", "server", "modpack", "username", "comment"]).default("all"),
+});
+
+/** 管理后台审查日志操作 */
+export const adminModerationLogActionSchema = z.object({
+  reviewed: z.boolean().optional(),
+  adminNote: z.string().max(500).optional(),
+});
+
 // ─── 类型导出 ────────────────────────────────
 
 export type CreateServerInput = z.infer<typeof createServerSchema>;
@@ -276,3 +290,5 @@ export type AdminQueryServersInput = z.infer<typeof adminQueryServersSchema>;
 export type AdminServerActionInput = z.infer<typeof adminServerActionSchema>;
 export type AdminQueryUsersInput = z.infer<typeof adminQueryUsersSchema>;
 export type AdminUserActionInput = z.infer<typeof adminUserActionSchema>;
+export type AdminQueryModerationLogsInput = z.infer<typeof adminQueryModerationLogsSchema>;
+export type AdminModerationLogActionInput = z.infer<typeof adminModerationLogActionSchema>;
