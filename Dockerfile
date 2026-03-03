@@ -27,7 +27,7 @@ ENV SMTP_PASS="dummy"
 ENV SMTP_FROM="Build <build@example.com>"
 
 RUN pnpm build
-RUN pnpm exec esbuild src/worker/index.ts \
+RUN ./node_modules/.bin/esbuild src/worker/index.ts \
     --bundle \
     --platform=node \
     --target=node22 \
