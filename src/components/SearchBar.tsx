@@ -36,7 +36,7 @@ export function SearchBar({ onSearch, initialValue = "" }: SearchBarProps) {
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="搜索服务器名称或描述..."
+        placeholder="搜索服务器名称、描述，或输入 PSID / UID 直达..."
         className="m3-input w-full px-4"
       />
       {value && (

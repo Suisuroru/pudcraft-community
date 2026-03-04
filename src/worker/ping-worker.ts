@@ -8,7 +8,11 @@ import { getQueueConnection, PING_QUEUE_NAME, type PingJobData } from "../lib/qu
 const prisma = new PrismaClient();
 const ONLINE_NOTIFY_COOLDOWN_SECONDS = 60 * 60;
 
-async function notifyServerOnline(serverId: string, serverName: string): Promise<void> {
+async function notifyServerOnline(
+  serverId: string,
+  serverName: string,
+  serverPsid: number,
+): Promise<void> {
   try {
     const redis = getRedisConnection();
     const cooldownKey = `notify-online:${serverId}`;
@@ -39,7 +43,7 @@ async function notifyServerOnline(serverId: string, serverName: string): Promise
         type: "server_online",
         title: "服务器已上线",
         message: `你收藏的「${serverName}」已上线`,
-        link: `/servers/${serverId}`,
+        link: `/servers/${serverPsid}`,
         serverId,
       })),
     });
@@ -64,6 +68,7 @@ export const pingWorker = new Worker<PingJobData>(
         select: {
           isOnline: true,
           name: true,
+          psid: true,
         },
       });
 
@@ -91,8 +96,8 @@ export const pingWorker = new Worker<PingJobData>(
         },
       });
 
-      if (!previousStatus?.isOnline && result.isOnline) {
-        await notifyServerOnline(serverId, previousStatus?.name ?? address);
+      if (!previousStatus?.isOnline && result.isOnline && previousStatus?.psid) {
+        await notifyServerOnline(serverId, previousStatus.name ?? address, previousStatus.psid);
       }
 
       return result;

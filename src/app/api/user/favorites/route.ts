@@ -25,6 +25,7 @@ export async function GET() {
         server: {
           select: {
             id: true,
+            psid: true,
             name: true,
             host: true,
             port: true,
@@ -51,6 +52,7 @@ export async function GET() {
       const server = favorite.server;
       return {
         id: server.id,
+        psid: server.psid,
         name: server.name,
         host: server.host,
         port: server.port,

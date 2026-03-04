@@ -15,6 +15,7 @@ datasource db {
 /// 用户表 —— 未来用于登录、认领服务器、发送消息等
 model User {
   id            String    @id @default(cuid())
+  uid           Int       @unique @map("uid")
   name          String?
   email         String    @unique
   emailVerified DateTime? @map("email_verified")
@@ -43,6 +44,7 @@ model User {
 /// 服务器表 —— 核心实体，每条记录对应一个 Minecraft 服务器
 model Server {
   id              String    @id @default(cuid())
+  psid            Int       @unique @map("psid")
   name            String
   host            String
   port            Int       @default(25565)
@@ -268,6 +270,18 @@ model ModerationLog {
   @@index([createdAt])
   @@index([reviewed, passed])
   @@map("moderation_logs")
+}
+
+/// 数字 ID 预留表 —— 确保 PSID/UID 删除后不被复用
+model ReservedNumericId {
+  id        String   @id @default(cuid())
+  type      String   // "psid" | "uid"
+  numericId Int      @map("numeric_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([type, numericId], name: "unique_type_numeric_id")
+  @@index([type])
+  @@map("reserved_numeric_ids")
 }
 
 // ============================================

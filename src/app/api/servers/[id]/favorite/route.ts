@@ -6,8 +6,9 @@ import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { resolveServerCuid } from "@/lib/lookup";
 import { canAccessServer } from "@/lib/server-access";
-import { serverIdSchema } from "@/lib/validation";
+import { serverLookupIdSchema } from "@/lib/validation";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -31,13 +32,18 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
 
     const { id } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedServerId.data },
+      where: { id: serverId },
       select: {
         id: true,
         status: true,
@@ -62,7 +68,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       where: {
         userId_serverId: {
           userId,
-          serverId: parsedServerId.data,
+          serverId,
         },
       },
       select: { id: true },
@@ -93,13 +99,18 @@ export async function POST(_request: Request, { params }: RouteContext) {
     }
 
     const { id } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedServerId.data },
+      where: { id: serverId },
       select: {
         id: true,
         favoriteCount: true,
@@ -125,7 +136,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       where: {
         userId_serverId: {
           userId,
-          serverId: parsedServerId.data,
+          serverId,
         },
       },
       select: { id: true },
@@ -144,12 +155,12 @@ export async function POST(_request: Request, { params }: RouteContext) {
         await tx.favorite.create({
           data: {
             userId,
-            serverId: parsedServerId.data,
+            serverId,
           },
         });
 
         const updatedServer = await tx.server.update({
-          where: { id: parsedServerId.data },
+          where: { id: serverId },
           data: { favoriteCount: { increment: 1 } },
           select: { favoriteCount: true },
         });
@@ -162,7 +173,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       // 幂等处理：并发收藏触发唯一约束时按成功返回。
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         const current = await prisma.server.findUnique({
-          where: { id: parsedServerId.data },
+          where: { id: serverId },
           select: { favoriteCount: true },
         });
 
@@ -199,13 +210,18 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     }
 
     const { id } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedServerId.data },
+      where: { id: serverId },
       select: {
         id: true,
         status: true,
@@ -230,13 +246,13 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       const deleted = await tx.favorite.deleteMany({
         where: {
           userId,
-          serverId: parsedServerId.data,
+          serverId,
         },
       });
 
       if (deleted.count === 0) {
         const current = await tx.server.findUnique({
-          where: { id: parsedServerId.data },
+          where: { id: serverId },
           select: { favoriteCount: true },
         });
 
@@ -246,7 +262,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       }
 
       const updated = await tx.server.update({
-        where: { id: parsedServerId.data },
+        where: { id: serverId },
         data: { favoriteCount: { decrement: 1 } },
         select: { favoriteCount: true },
       });
@@ -254,7 +270,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       // 防止并发导致负数
       if (updated.favoriteCount < 0) {
         await tx.server.update({
-          where: { id: parsedServerId.data },
+          where: { id: serverId },
           data: { favoriteCount: 0 },
         });
         return { favoriteCount: 0 };

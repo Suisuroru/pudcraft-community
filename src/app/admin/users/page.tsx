@@ -248,7 +248,7 @@ export default function AdminUsersPage() {
                           </button>
                         ) : null}
                         <Link
-                          href={`/user/${user.id}`}
+                          href={`/user/${user.uid}`}
                           className="rounded bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
                         >
                           查看

@@ -10,9 +10,10 @@ import { createNotification } from "@/lib/notification";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/request-ip";
 import { canAccessServer } from "@/lib/server-access";
+import { resolveServerCuid } from "@/lib/lookup";
 import { getPublicUrl } from "@/lib/storage";
 import type { ServerComment } from "@/lib/types";
-import { createCommentSchema, queryCommentsSchema, serverIdSchema } from "@/lib/validation";
+import { createCommentSchema, queryCommentsSchema, serverLookupIdSchema } from "@/lib/validation";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -43,6 +44,19 @@ async function createCommentNotification({
   actorName,
 }: CommentNotificationParams): Promise<void> {
   try {
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: {
+        psid: true,
+        ownerId: true,
+        name: true,
+      },
+    });
+
+    if (!server) {
+      return;
+    }
+
     if (parentId) {
       const parentComment = await prisma.comment.findUnique({
         where: { id: parentId },
@@ -57,7 +71,7 @@ async function createCommentNotification({
           type: "comment_reply",
           title: "新的评论回复",
           message: `${actorName} 回复了你的评论`,
-          link: `/servers/${serverId}#comment-${commentId}`,
+          link: `/servers/${server.psid}#comment-${commentId}`,
           serverId,
           commentId,
         });
@@ -66,21 +80,13 @@ async function createCommentNotification({
       return;
     }
 
-    const server = await prisma.server.findUnique({
-      where: { id: serverId },
-      select: {
-        ownerId: true,
-        name: true,
-      },
-    });
-
-    if (server?.ownerId && server.ownerId !== actorId) {
+    if (server.ownerId && server.ownerId !== actorId) {
       await createNotification({
         userId: server.ownerId,
         type: "comment_reply",
         title: "新的服务器评论",
         message: `${actorName} 评论了「${server.name}」`,
-        link: `/servers/${serverId}#comment-${commentId}`,
+        link: `/servers/${server.psid}#comment-${commentId}`,
         serverId,
         commentId,
       });
@@ -97,6 +103,7 @@ function mapComments(
     createdAt: Date;
     author: {
       id: string;
+      uid: number;
       name: string | null;
       image: string | null;
     };
@@ -106,6 +113,7 @@ function mapComments(
       createdAt: Date;
       author: {
         id: string;
+        uid: number;
         name: string | null;
         image: string | null;
       };
@@ -118,6 +126,7 @@ function mapComments(
     createdAt: comment.createdAt.toISOString(),
     author: {
       id: comment.author.id,
+      uid: comment.author.uid,
       name: comment.author.name,
       image: getPublicUrl(comment.author.image),
     },
@@ -127,6 +136,7 @@ function mapComments(
       createdAt: reply.createdAt.toISOString(),
       author: {
         id: reply.author.id,
+        uid: reply.author.uid,
         name: reply.author.name,
         image: getPublicUrl(reply.author.image),
       },
@@ -141,9 +151,14 @@ function mapComments(
 export async function GET(request: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
+    }
+
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -159,7 +174,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
 
     const server = await prisma.server.findUnique({
-      where: { id: parsedServerId.data },
+      where: { id: serverId },
       select: {
         id: true,
         status: true,
@@ -186,7 +201,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
     const { page, limit } = parsedQuery.data;
     const where = {
-      serverId: parsedServerId.data,
+      serverId,
       parentId: null,
     };
 
@@ -201,6 +216,7 @@ export async function GET(request: Request, { params }: RouteContext) {
           author: {
             select: {
               id: true,
+              uid: true,
               name: true,
               image: true,
             },
@@ -211,6 +227,7 @@ export async function GET(request: Request, { params }: RouteContext) {
               author: {
                 select: {
                   id: true,
+                  uid: true,
                   name: true,
                   image: true,
                 },
@@ -251,13 +268,18 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
 
     const { id } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedServerId.data },
+      where: { id: serverId },
       select: {
         id: true,
         status: true,
@@ -311,7 +333,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         },
       });
 
-      if (!parent || parent.serverId !== parsedServerId.data) {
+      if (!parent || parent.serverId !== serverId) {
         return NextResponse.json({ error: "回复目标不存在或不属于当前服务器" }, { status: 400 });
       }
 
@@ -323,7 +345,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const comment = await prisma.comment.create({
       data: {
         content,
-        serverId: parsedServerId.data,
+        serverId,
         authorId: userId,
         parentId: parentId ?? null,
       },
@@ -331,6 +353,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         author: {
           select: {
             id: true,
+            uid: true,
             name: true,
             image: true,
           },
@@ -340,7 +363,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     const actorName = getActorDisplayName(authResult.user.name);
     void createCommentNotification({
-      serverId: parsedServerId.data,
+      serverId,
       commentId: comment.id,
       parentId: comment.parentId,
       actorId: userId,
@@ -356,6 +379,7 @@ export async function POST(request: Request, { params }: RouteContext) {
           parentId: comment.parentId,
           author: {
             id: comment.author.id,
+            uid: comment.author.uid,
             name: comment.author.name,
             image: getPublicUrl(comment.author.image),
           },

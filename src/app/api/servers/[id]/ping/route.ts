@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { serverIdSchema } from "@/lib/validation";
+import { serverLookupIdSchema } from "@/lib/validation";
 
 /**
  * GET /api/servers/:id/ping
@@ -12,7 +12,7 @@ import { serverIdSchema } from "@/lib/validation";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const parsed = serverIdSchema.safeParse(id);
+    const parsed = serverLookupIdSchema.safeParse(id);
     if (!parsed.success) {
       return NextResponse.json({ error: "无效的服务器 ID" }, { status: 400 });
     }

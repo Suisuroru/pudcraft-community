@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { EmptyState } from "@/components/EmptyState";
 import { PageLoading } from "@/components/PageLoading";
@@ -71,6 +72,7 @@ export function HomePageClient({
   initialSearch,
   initialTotalPages,
 }: HomePageClientProps) {
+  const router = useRouter();
   const { status } = useSession();
   const { toast } = useToast();
   const [servers, setServers] = useState<ServerListItem[]>(initialServers);
@@ -239,9 +241,23 @@ export function HomePageClient({
 
   const handleSearch = useCallback(
     (nextSearch: string) => {
+      const trimmed = nextSearch.trim();
+
+      // 6 位纯数字 → PSID 跳转
+      if (/^\d{6}$/.test(trimmed)) {
+        router.push(`/servers/${trimmed}`);
+        return;
+      }
+
+      // 9 位纯数字 → UID 跳转
+      if (/^\d{9}$/.test(trimmed)) {
+        router.push(`/user/${trimmed}`);
+        return;
+      }
+
       updateQuery({ search: nextSearch }, { resetPage: true });
     },
-    [updateQuery],
+    [router, updateQuery],
   );
 
   const sort = useMemo(() => query.sort, [query.sort]);

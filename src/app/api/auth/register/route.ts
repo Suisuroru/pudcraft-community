@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { generateAndReserveUid } from "@/lib/numeric-id";
 import { getClientIp } from "@/lib/request-ip";
 import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
@@ -59,12 +60,16 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12);
     try {
-      await db.user.create({
-        data: {
-          email,
-          passwordHash,
-          emailVerified: new Date(),
-        },
+      await db.$transaction(async (tx) => {
+        const uid = await generateAndReserveUid(tx);
+        await tx.user.create({
+          data: {
+            email,
+            passwordHash,
+            emailVerified: new Date(),
+            uid,
+          },
+        });
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

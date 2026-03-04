@@ -1,6 +1,12 @@
+import { randomInt } from "crypto";
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+function generateRandomPsid(): number {
+  return randomInt(100_000, 1_000_000);
+}
 
 interface SeedServer {
   name: string;
@@ -436,11 +442,19 @@ async function main() {
   await prisma.serverStatus.deleteMany();
   await prisma.server.deleteMany();
 
+  // Also clear reserved IDs for re-seeding
+  await prisma.reservedNumericId.deleteMany();
+
   for (const serverData of SEED_SERVERS) {
     const { status, ...serverFields } = serverData;
+    const psid = generateRandomPsid();
+    await prisma.reservedNumericId.create({
+      data: { type: "psid", numericId: psid },
+    });
     const server = await prisma.server.create({
       data: {
         ...serverFields,
+        psid,
         status: "approved",
         statuses: {
           create: {

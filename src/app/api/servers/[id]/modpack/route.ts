@@ -16,8 +16,9 @@ import {
 import { moderateFields } from "@/lib/moderation";
 import { getClientIp } from "@/lib/request-ip";
 import { canAccessServer } from "@/lib/server-access";
+import { resolveServerCuid } from "@/lib/lookup";
 import { deleteObject, uploadModpack } from "@/lib/storage";
-import { serverIdSchema, uploadModpackSchema } from "@/lib/validation";
+import { serverLookupIdSchema, uploadModpackSchema } from "@/lib/validation";
 
 function extractTextField(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
@@ -43,13 +44,18 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const parsedId = serverIdSchema.safeParse(id);
+    const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const resolvedServerId = await resolveServerCuid(parsedId.data);
+    if (!resolvedServerId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedId.data },
+      where: { id: resolvedServerId },
       select: {
         id: true,
         ownerId: true,
@@ -120,13 +126,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const userId = authResult.user.id;
 
     const { id } = await params;
-    const parsedId = serverIdSchema.safeParse(id);
+    const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const resolvedServerId = await resolveServerCuid(parsedId.data);
+    if (!resolvedServerId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedId.data },
+      where: { id: resolvedServerId },
       select: {
         id: true,
         ownerId: true,

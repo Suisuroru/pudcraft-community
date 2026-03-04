@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { resolveServerCuid } from "@/lib/lookup";
 import { createNotification } from "@/lib/notification";
 import { requireAdmin, isAdminError } from "@/lib/admin";
-import { serverIdSchema, adminServerActionSchema } from "@/lib/validation";
+import { serverLookupIdSchema, adminServerActionSchema } from "@/lib/validation";
 import { deleteFile, deleteObject } from "@/lib/storage";
 
 interface ReviewNotificationParams {
   action: "approve" | "reject";
   ownerId: string;
   serverId: string;
+  serverPsid: number;
   serverName: string;
   reason?: string;
 }
@@ -18,6 +20,7 @@ async function createReviewNotification({
   action,
   ownerId,
   serverId,
+  serverPsid,
   serverName,
   reason,
 }: ReviewNotificationParams): Promise<void> {
@@ -28,7 +31,7 @@ async function createReviewNotification({
         type: "server_approved",
         title: "服务器审核通过",
         message: `你的服务器「${serverName}」已通过审核，现在所有人都可以看到了`,
-        link: `/servers/${serverId}`,
+        link: `/servers/${serverPsid}`,
         serverId,
       });
       return;
@@ -58,9 +61,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const { id } = await params;
-    const parsedId = serverIdSchema.safeParse(id);
+    const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
+    }
+
+    const resolvedId = await resolveServerCuid(parsedId.data);
+    if (!resolvedId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
     }
 
     let body: unknown;
@@ -80,8 +88,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { action, reason } = parsed.data;
 
     const server = await prisma.server.findUnique({
-      where: { id: parsedId.data },
-      select: { id: true, status: true, ownerId: true, name: true },
+      where: { id: resolvedId },
+      select: { id: true, psid: true, status: true, ownerId: true, name: true },
     });
 
     if (!server) {
@@ -99,6 +107,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           action: "approve",
           ownerId: server.ownerId,
           serverId: server.id,
+          serverPsid: server.psid,
           serverName: server.name,
         });
       }
@@ -121,6 +130,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           action: "reject",
           ownerId: server.ownerId,
           serverId: server.id,
+          serverPsid: server.psid,
           serverName: server.name,
           reason,
         });
@@ -147,13 +157,18 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     }
 
     const { id } = await params;
-    const parsedId = serverIdSchema.safeParse(id);
+    const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const resolvedId = await resolveServerCuid(parsedId.data);
+    if (!resolvedId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsedId.data },
+      where: { id: resolvedId },
       select: {
         id: true,
         iconUrl: true,

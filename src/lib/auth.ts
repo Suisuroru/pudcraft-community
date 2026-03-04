@@ -87,7 +87,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       if (typeof token.id === "string") {
         const shouldRefreshProfile =
-          !!user || trigger === "update" || token.profileHydrated !== true;
+          !!user || trigger === "update" || token.profileHydrated !== true || typeof token.uid !== "number";
 
         if (shouldRefreshProfile) {
           const latestUser = await db.user.findUnique({
@@ -97,6 +97,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               email: true,
               image: true,
               role: true,
+              uid: true,
             },
           });
 
@@ -105,6 +106,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.email = latestUser.email;
             token.picture = getPublicUrl(latestUser.image);
             token.role = latestUser.role;
+            token.uid = latestUser.uid;
           }
 
           token.profileHydrated = true;
@@ -137,6 +139,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       if (session.user) {
         session.user.role = typeof token.role === "string" ? token.role : "user";
+      }
+      if (session.user && typeof token.uid === "number") {
+        session.user.uid = token.uid;
       }
       return session;
     },

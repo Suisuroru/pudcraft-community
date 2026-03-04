@@ -3,9 +3,10 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { resolveUserCuid } from "@/lib/lookup";
 import { getPublicUrl } from "@/lib/storage";
 import type { ServerListItem } from "@/lib/types";
-import { userIdSchema } from "@/lib/validation";
+import { userLookupIdSchema } from "@/lib/validation";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,15 +19,21 @@ interface RouteContext {
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const parsedUserId = userIdSchema.safeParse(id);
+    const parsedUserId = userLookupIdSchema.safeParse(id);
     if (!parsedUserId.success) {
       return NextResponse.json({ error: "无效的用户 ID 格式" }, { status: 400 });
     }
 
+    const resolvedId = await resolveUserCuid(parsedUserId.data);
+    if (!resolvedId) {
+      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: parsedUserId.data },
+      where: { id: resolvedId },
       select: {
         id: true,
+        uid: true,
         name: true,
         image: true,
         bio: true,
@@ -46,6 +53,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     const servers: ServerListItem[] = user.servers.map((server) => ({
       id: server.id,
+      psid: server.psid,
       name: server.name,
       host: server.host,
       port: server.port,
@@ -68,6 +76,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({
       data: {
         id: user.id,
+        uid: user.uid,
         name: user.name,
         image: getPublicUrl(user.image),
         bio: user.bio,

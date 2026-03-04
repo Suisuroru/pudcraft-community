@@ -42,12 +42,22 @@ export const serverPortSchema = z
   .min(1, "端口号最小为 1")
   .max(65535, "端口号最大为 65535");
 
-/** 服务器 ID 校验（cuid 格式） */
+/** 服务器 ID 校验（cuid 格式，内部使用） */
 export const serverIdSchema = z.string().cuid();
-/** 用户 ID 校验（cuid 格式） */
+/** 用户 ID 校验（cuid 格式，内部使用） */
 export const userIdSchema = z.string().cuid();
 /** 整合包 ID 校验（cuid 格式） */
 export const modpackIdSchema = z.string().cuid();
+
+/** 服务器 URL 参数校验（CUID 或 6 位 PSID） */
+export const serverLookupIdSchema = z
+  .string()
+  .refine((v) => /^\d{6}$/.test(v) || z.string().cuid().safeParse(v).success, "无效的服务器 ID");
+
+/** 用户 URL 参数校验（CUID 或 9 位 UID） */
+export const userLookupIdSchema = z
+  .string()
+  .refine((v) => /^\d{9}$/.test(v) || z.string().cuid().safeParse(v).success, "无效的用户 ID");
 
 const optionalTrimmedText = (max: number, message: string) =>
   z.preprocess((value) => {

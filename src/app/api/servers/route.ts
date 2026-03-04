@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { generateAndReservePsid } from "@/lib/numeric-id";
 import { getClientIp } from "@/lib/request-ip";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -48,11 +49,12 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function duplicateServerResponse(existing: { id: string; name: string | null }) {
+function duplicateServerResponse(existing: { id: string; psid: number; name: string | null }) {
   return NextResponse.json(
     {
       error: "该服务器地址已被收录",
       existingServerId: existing.id,
+      existingServerPsid: existing.psid,
       existingServerName: existing.name,
       hint: "如果你是这个服务器的管理员，可以去认领它",
     },
@@ -156,6 +158,7 @@ export async function GET(request: Request) {
     // ─── 映射为 API 响应格式 ───
     const data: ServerListItem[] = servers.map((server) => ({
       id: server.id,
+      psid: server.psid,
       name: server.name,
       host: server.host,
       port: server.port,
@@ -273,6 +276,7 @@ export async function POST(request: Request) {
       },
       select: {
         id: true,
+        psid: true,
         name: true,
       },
     });
@@ -301,22 +305,26 @@ export async function POST(request: Request) {
 
     let server;
     try {
-      server = await prisma.server.create({
-        data: {
-          name,
-          host: normalizedHost,
-          port,
-          description: description || null,
-          content: buildServerContent({
-            version,
-            content: content || undefined,
-            maxPlayers: typeof maxPlayers === "number" ? maxPlayers : undefined,
-            qqGroup: qqGroup || undefined,
-          }),
-          tags,
-          ownerId: userId,
-          maxPlayers: typeof maxPlayers === "number" ? maxPlayers : 0,
-        },
+      server = await prisma.$transaction(async (tx) => {
+        const psid = await generateAndReservePsid(tx);
+        return tx.server.create({
+          data: {
+            name,
+            host: normalizedHost,
+            port,
+            psid,
+            description: description || null,
+            content: buildServerContent({
+              version,
+              content: content || undefined,
+              maxPlayers: typeof maxPlayers === "number" ? maxPlayers : undefined,
+              qqGroup: qqGroup || undefined,
+            }),
+            tags,
+            ownerId: userId,
+            maxPlayers: typeof maxPlayers === "number" ? maxPlayers : 0,
+          },
+        });
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -330,6 +338,7 @@ export async function POST(request: Request) {
           },
           select: {
             id: true,
+            psid: true,
             name: true,
           },
         });
@@ -378,6 +387,7 @@ export async function POST(request: Request) {
         warning: iconWarning,
         data: {
           id: server.id,
+          psid: server.psid,
           name: server.name,
           host: server.host,
           port: server.port,

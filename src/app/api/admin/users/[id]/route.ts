@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { resolveUserCuid } from "@/lib/lookup";
 import { requireAdmin, isAdminError } from "@/lib/admin";
-import { userIdSchema, adminUserActionSchema } from "@/lib/validation";
+import { userLookupIdSchema, adminUserActionSchema } from "@/lib/validation";
 
 /**
  * PATCH /api/admin/users/:id — 封禁/解封用户。
@@ -15,9 +16,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const { id } = await params;
-    const parsedId = userIdSchema.safeParse(id);
+    const parsedId = userLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的用户 ID 格式" }, { status: 400 });
+    }
+
+    const resolvedId = await resolveUserCuid(parsedId.data);
+    if (!resolvedId) {
+      return NextResponse.json({ error: "用户未找到" }, { status: 404 });
     }
 
     let body: unknown;
@@ -37,7 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { action, reason } = parsed.data;
 
     const user = await prisma.user.findUnique({
-      where: { id: parsedId.data },
+      where: { id: resolvedId },
       select: { id: true, role: true, isBanned: true },
     });
 

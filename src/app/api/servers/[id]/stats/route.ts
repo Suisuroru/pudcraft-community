@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { queryServerStatsSchema, serverIdSchema } from "@/lib/validation";
+import { resolveServerCuid } from "@/lib/lookup";
+import { queryServerStatsSchema, serverLookupIdSchema } from "@/lib/validation";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -239,9 +240,14 @@ export async function GET(request: Request, { params }: RouteContext) {
     const userId = authResult.user.id;
 
     const { id } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
+    }
+
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -256,7 +262,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
 
     const server = await prisma.server.findUnique({
-      where: { id: parsedServerId.data },
+      where: { id: serverId },
       select: {
         id: true,
         ownerId: true,

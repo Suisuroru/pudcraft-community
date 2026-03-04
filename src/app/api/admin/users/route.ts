@@ -60,6 +60,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
+          uid: true,
           name: true,
           email: true,
           image: true,
@@ -82,6 +83,7 @@ export async function GET(request: Request) {
 
     const data: AdminUserItem[] = users.map((user) => ({
       id: user.id,
+      uid: user.uid,
       name: user.name,
       email: user.email,
       image: getPublicUrl(user.image),

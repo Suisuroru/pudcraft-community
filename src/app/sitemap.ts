@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 const SITE_URL = "https://pudcraft.cn";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let servers: { id: string; updatedAt: Date }[] = [];
+  let servers: { psid: number; updatedAt: Date }[] = [];
 
   try {
     servers = await db.server.findMany({
@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         status: "approved",
       },
       select: {
-        id: true,
+        psid: true,
         updatedAt: true,
       },
     });
@@ -46,7 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const serverPages: MetadataRoute.Sitemap = servers.map((server) => ({
-    url: `${SITE_URL}/servers/${server.id}`,
+    url: `${SITE_URL}/servers/${server.psid}`,
     lastModified: server.updatedAt,
     changeFrequency: "daily",
     priority: 0.8,

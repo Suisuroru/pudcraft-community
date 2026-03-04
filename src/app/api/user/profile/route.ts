@@ -20,6 +20,7 @@ import { updateProfileSchema } from "@/lib/validation";
 
 interface ProfileResponseData {
   id: string;
+  uid: number;
   name: string | null;
   email: string;
   image: string | null;
@@ -51,6 +52,7 @@ export async function GET() {
       where: { id: userId },
       select: {
         id: true,
+        uid: true,
         name: true,
         email: true,
         image: true,
@@ -64,6 +66,7 @@ export async function GET() {
 
     const data: ProfileResponseData = {
       id: user.id,
+      uid: user.uid,
       name: user.name,
       email: user.email,
       image: getPublicUrl(user.image),
@@ -93,6 +96,7 @@ export async function PATCH(request: Request) {
       where: { id: userId },
       select: {
         id: true,
+        uid: true,
         name: true,
         email: true,
         image: true,
@@ -206,6 +210,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({
         data: {
           id: existingUser.id,
+          uid: existingUser.uid,
           name: existingUser.name,
           email: existingUser.email,
           image: getPublicUrl(existingUser.image),
@@ -219,6 +224,7 @@ export async function PATCH(request: Request) {
       data,
       select: {
         id: true,
+        uid: true,
         name: true,
         email: true,
         image: true,
@@ -245,6 +251,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({
       data: {
         id: updated.id,
+        uid: updated.uid,
         name: updated.name,
         email: updated.email,
         image: getPublicUrl(updated.image),
