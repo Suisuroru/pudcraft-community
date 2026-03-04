@@ -103,7 +103,7 @@ export function AuthButtons() {
       {open && (
         <div className="m3-surface absolute right-0 top-11 z-50 w-44 p-2">
           <Link
-            href={`/user/${session.user.id}`}
+            href={`/user/${session.user.uid}`}
             className="block rounded-lg px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
             onClick={() => setOpen(false)}
           >
@@ -283,7 +283,7 @@ export function MobileNavMenu() {
                     通知中心
                   </Link>
                   <Link
-                    href={`/user/${session.user.id}`}
+                    href={`/user/${session.user.uid}`}
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
                     onClick={() => setOpen(false)}
                   >

@@ -134,7 +134,7 @@ export function CommentItem({
             className="h-8 w-8"
             fallbackClassName="bg-teal-600 text-white"
           />
-          <Link href={`/user/${comment.author.id}`} className="m3-link text-sm font-medium">
+          <Link href={`/user/${comment.author.uid}`} className="m3-link text-sm font-medium">
             {displayAuthorName(comment.author)}
           </Link>
         </div>
@@ -229,7 +229,7 @@ export function CommentItem({
                     className="h-8 w-8"
                     fallbackClassName="bg-teal-600 text-white"
                   />
-                  <Link href={`/user/${reply.author.id}`} className="m3-link text-sm font-medium">
+                  <Link href={`/user/${reply.author.uid}`} className="m3-link text-sm font-medium">
                     {displayAuthorName(reply.author)}
                   </Link>
                 </div>

@@ -358,7 +358,7 @@ export default function ConsoleServerPage() {
             原因：{server.rejectReason?.trim() || "管理员未填写具体原因，请修改后重新提交。"}
           </p>
           <Link
-            href={`/servers/${server.id}/edit`}
+            href={`/servers/${server.psid}/edit`}
             className="mt-2 inline-flex text-xs underline underline-offset-4"
           >
             去编辑并重新提交
@@ -398,7 +398,7 @@ export default function ConsoleServerPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <PeakHours hourlyAverages={peakHourly} isLoading={isPeakLoading} />
         <ServerActions
-          serverId={server.id}
+          serverId={String(server.psid)}
           serverName={server.name}
           isVerified={server.isVerified}
           onDeleted={() => {
@@ -407,7 +407,7 @@ export default function ConsoleServerPage() {
         />
       </div>
 
-      <RecentComments serverId={server.id} />
+      <RecentComments serverId={String(server.psid)} />
     </div>
   );
 }

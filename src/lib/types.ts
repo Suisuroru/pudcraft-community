@@ -16,6 +16,7 @@ export interface ServerStatusResponse {
 /** 服务器列表项（不含 content，用于卡片展示） */
 export interface ServerListItem {
   id: string;
+  psid: number;
   name: string;
   host: string;
   port: number;
@@ -93,6 +94,7 @@ export interface ServerDetailResponse {
 /** 评论作者信息 */
 export interface CommentAuthor {
   id: string;
+  uid: number;
   name: string | null;
   image: string | null;
 }
@@ -164,6 +166,7 @@ export interface MarkNotificationsReadResponse {
 /** 当前登录用户资料 */
 export interface CurrentUserProfile {
   id: string;
+  uid: number;
   name: string | null;
   email: string;
   image: string | null;
@@ -178,6 +181,7 @@ export interface CurrentUserProfileResponse {
 /** 用户公开主页数据 */
 export interface PublicUserProfile {
   id: string;
+  uid: number;
   name: string | null;
   image: string | null;
   bio: string | null;
@@ -195,6 +199,7 @@ export interface PublicUserProfileResponse {
 /** 管理后台 - 服务器列表项 */
 export interface AdminServerItem {
   id: string;
+  psid: number;
   name: string;
   host: string;
   port: number;
@@ -213,6 +218,7 @@ export interface AdminServerItem {
 /** 管理后台 - 用户列表项 */
 export interface AdminUserItem {
   id: string;
+  uid: number;
   name: string | null;
   email: string;
   image: string | null;

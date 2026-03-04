@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CopyIdBadge } from "@/components/CopyIdBadge";
 import { CopyServerIpButton } from "@/components/CopyServerIpButton";
 import { CommentSection } from "@/components/CommentSection";
 import { DeleteModpackButton } from "@/components/DeleteModpackButton";
@@ -12,11 +13,12 @@ import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { serializeJsonForScript } from "@/lib/json";
+import { resolveServerCuid } from "@/lib/lookup";
 import { canAccessServer, isServerOwner } from "@/lib/server-access";
 import { getPublicUrl } from "@/lib/storage";
 import { timeAgo } from "@/lib/time";
 import type { ServerComment } from "@/lib/types";
-import { serverIdSchema } from "@/lib/validation";
+import { serverLookupIdSchema } from "@/lib/validation";
 
 const SITE_URL = "https://pudcraft.cn";
 const COMMENTS_PAGE_SIZE = 20;
@@ -61,6 +63,7 @@ function mapComments(
     createdAt: Date;
     author: {
       id: string;
+      uid: number;
       name: string | null;
       image: string | null;
     };
@@ -70,6 +73,7 @@ function mapComments(
       createdAt: Date;
       author: {
         id: string;
+        uid: number;
         name: string | null;
         image: string | null;
       };
@@ -82,6 +86,7 @@ function mapComments(
     createdAt: comment.createdAt.toISOString(),
     author: {
       id: comment.author.id,
+      uid: comment.author.uid,
       name: comment.author.name,
       image: getPublicUrl(comment.author.image),
     },
@@ -91,6 +96,7 @@ function mapComments(
       createdAt: reply.createdAt.toISOString(),
       author: {
         id: reply.author.id,
+        uid: reply.author.uid,
         name: reply.author.name,
         image: getPublicUrl(reply.author.image),
       },
@@ -98,22 +104,28 @@ function mapComments(
   }));
 }
 
-const getServerPageData = cache(async (serverId: string) => {
-  const parsed = serverIdSchema.safeParse(serverId);
+const getServerPageData = cache(async (rawId: string) => {
+  const parsed = serverLookupIdSchema.safeParse(rawId);
   if (!parsed.success) {
     return null;
   }
 
+  const cuid = await resolveServerCuid(parsed.data);
+  if (!cuid) {
+    return null;
+  }
+
   const where = {
-    serverId: parsed.data,
+    serverId: cuid,
     parentId: null,
   } as const;
 
   const [server, commentTotal, comments] = await Promise.all([
     prisma.server.findUnique({
-      where: { id: parsed.data },
+      where: { id: cuid },
       select: {
         id: true,
+        psid: true,
         name: true,
         host: true,
         port: true,
@@ -142,6 +154,7 @@ const getServerPageData = cache(async (serverId: string) => {
         author: {
           select: {
             id: true,
+            uid: true,
             name: true,
             image: true,
           },
@@ -152,6 +165,7 @@ const getServerPageData = cache(async (serverId: string) => {
             author: {
               select: {
                 id: true,
+                uid: true,
                 name: true,
                 image: true,
               },
@@ -292,7 +306,7 @@ export default async function ServerDetailPage({ params }: Props) {
     "@type": "GameServer",
     name: server.name,
     description: server.description || `${server.name} Minecraft 服务器`,
-    url: `${SITE_URL}/servers/${server.id}`,
+    url: `${SITE_URL}/servers/${server.psid}`,
     image: [toAbsoluteUrl(getPublicUrl(server.iconUrl) ?? "/default-server-icon.png")],
     game: {
       "@type": "VideoGame",
@@ -326,7 +340,7 @@ export default async function ServerDetailPage({ params }: Props) {
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {isOwner && (
               <Link
-                href={`/servers/${server.id}/edit`}
+                href={`/servers/${server.psid}/edit`}
                 className="m3-btn m3-btn-primary rounded-lg px-3 py-1.5 text-xs"
               >
                 编辑
@@ -335,7 +349,7 @@ export default async function ServerDetailPage({ params }: Props) {
 
             {isOwner && (
               <Link
-                href={`/servers/${server.id}/modpacks`}
+                href={`/servers/${server.psid}/modpacks`}
                 className="m3-btn m3-btn-tonal rounded-lg px-3 py-1.5 text-xs text-teal-700"
               >
                 整合包管理
@@ -344,7 +358,7 @@ export default async function ServerDetailPage({ params }: Props) {
 
             {canClaimUnverified && (
               <Link
-                href={`/servers/${server.id}/verify`}
+                href={`/servers/${server.psid}/verify`}
                 className="m3-btn m3-btn-tonal rounded-lg px-3 py-1.5 text-xs text-teal-700"
               >
                 认领此服务器
@@ -362,7 +376,7 @@ export default async function ServerDetailPage({ params }: Props) {
 
             {!isLoggedIn && !server.isVerified && (
               <Link
-                href={`/login?callbackUrl=${encodeURIComponent(`/servers/${server.id}/verify`)}`}
+                href={`/login?callbackUrl=${encodeURIComponent(`/servers/${server.psid}/verify`)}`}
                 className="text-xs text-slate-500 underline underline-offset-4"
               >
                 登录后认领
@@ -446,7 +460,7 @@ export default async function ServerDetailPage({ params }: Props) {
             )}
             {server.status === "rejected" && (
               <Link
-                href={`/servers/${server.id}/edit`}
+                href={`/servers/${server.psid}/edit`}
                 className="mt-2 inline-flex text-xs underline underline-offset-4"
               >
                 去修改并重新提交
@@ -478,6 +492,7 @@ export default async function ServerDetailPage({ params }: Props) {
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <p className="font-mono text-sm text-slate-500">{serverAddress}</p>
           <CopyServerIpButton address={serverAddress} />
+          <CopyIdBadge label="PSID" value={String(server.psid)} />
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -505,7 +520,7 @@ export default async function ServerDetailPage({ params }: Props) {
             <h2 className="text-lg font-semibold text-slate-900">整合包</h2>
             {isOwner && (
               <Link
-                href={`/servers/${server.id}/modpacks`}
+                href={`/servers/${server.psid}/modpacks`}
                 className="rounded-xl border border-teal-600 px-3 py-1.5 text-xs font-medium text-teal-600 transition-colors hover:bg-teal-50"
               >
                 上传 / 管理

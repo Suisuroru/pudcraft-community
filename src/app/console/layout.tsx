@@ -70,7 +70,7 @@ export default async function ConsoleLayout({ children }: ConsoleLayoutProps) {
             返回首页
           </Link>
           <Link
-            href={`/user/${userId}`}
+            href={`/user/${session?.user?.uid}`}
             className="m3-btn m3-btn-tonal flex items-center gap-2 px-2 py-1.5"
           >
             <UserAvatar

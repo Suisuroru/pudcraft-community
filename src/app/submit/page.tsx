@@ -14,6 +14,7 @@ interface ApiResponsePayload {
   message?: string;
   hint?: string;
   existingServerId?: string;
+  existingServerPsid?: number;
   existingServerName?: string;
 }
 
@@ -29,6 +30,8 @@ function toApiPayload(raw: unknown): ApiResponsePayload {
     hint: typeof payload.hint === "string" ? payload.hint : undefined,
     existingServerId:
       typeof payload.existingServerId === "string" ? payload.existingServerId : undefined,
+    existingServerPsid:
+      typeof payload.existingServerPsid === "number" ? payload.existingServerPsid : undefined,
     existingServerName:
       typeof payload.existingServerName === "string" ? payload.existingServerName : undefined,
   };
@@ -44,6 +47,7 @@ export default function SubmitServerPage() {
   const { toast } = useToast();
   const [duplicateServer, setDuplicateServer] = useState<{
     id: string;
+    psid: number | null;
     name: string;
     hint: string;
   } | null>(null);
@@ -73,6 +77,7 @@ export default function SubmitServerPage() {
         if (payload.existingServerId) {
           setDuplicateServer({
             id: payload.existingServerId,
+            psid: payload.existingServerPsid ?? null,
             name: payload.existingServerName ?? "该服务器",
             hint: payload.hint ?? "如果你是这个服务器的管理员，可以去认领它",
           });
@@ -121,7 +126,7 @@ export default function SubmitServerPage() {
               {duplicateServer.hint}
             </p>
             <Link
-              href={`/servers/${duplicateServer.id}/verify`}
+              href={`/servers/${duplicateServer.psid ?? duplicateServer.id}/verify`}
               className="m3-link mt-2 inline-flex text-sm"
             >
               前往认领

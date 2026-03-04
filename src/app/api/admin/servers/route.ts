@@ -120,6 +120,7 @@ export async function GET(request: Request) {
 
     const data: AdminServerItem[] = servers.map((server) => ({
       id: server.id,
+      psid: server.psid,
       name: server.name,
       host: server.host,
       port: server.port,

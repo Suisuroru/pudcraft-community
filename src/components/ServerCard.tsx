@@ -45,7 +45,7 @@ export function ServerCard({
 
   return (
     <Link
-      href={`/servers/${server.id}`}
+      href={`/servers/${server.psid}`}
       className="m3-surface group block cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:border-slate-300 sm:p-5"
     >
       {/* 1. 名称 + 在线状态 */}

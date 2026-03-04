@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { resolveServerCuid } from "@/lib/lookup";
 import { canAccessServer } from "@/lib/server-access";
 import { getClientIp } from "@/lib/request-ip";
 import {
@@ -20,7 +21,7 @@ import {
 } from "@/lib/storage";
 import { moderateFields } from "@/lib/moderation";
 import { buildServerContent, extractServerContentMetadata } from "@/lib/serverContent";
-import { serverIdSchema, updateServerSchema } from "@/lib/validation";
+import { serverLookupIdSchema, updateServerSchema } from "@/lib/validation";
 import type { ServerDetail } from "@/lib/types";
 
 function extractTextField(formData: FormData, key: string): string | undefined {
@@ -71,14 +72,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
 
-    // ─── Zod 校验 ───
-    const parsed = serverIdSchema.safeParse(id);
+    // ─── Zod 校验（支持 CUID 和 6 位 PSID） ───
+    const parsed = serverLookupIdSchema.safeParse(id);
     if (!parsed.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const cuid = await resolveServerCuid(parsed.data);
+    if (!cuid) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const server = await prisma.server.findUnique({
-      where: { id: parsed.data },
+      where: { id: cuid },
     });
 
     if (!server) {
@@ -101,6 +107,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const data: ServerDetail = {
       id: server.id,
+      psid: server.psid,
       name: server.name,
       host: server.host,
       port: server.port,
@@ -147,13 +154,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const userId = authResult.user.id;
 
     const { id } = await params;
-    const parsedId = serverIdSchema.safeParse(id);
+    const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const cuid = await resolveServerCuid(parsedId.data);
+    if (!cuid) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const existing = await prisma.server.findUnique({
-      where: { id: parsedId.data },
+      where: { id: cuid },
       select: {
         id: true,
         ownerId: true,
@@ -402,13 +414,18 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const userRole = authResult.user.role;
 
     const { id } = await params;
-    const parsedId = serverIdSchema.safeParse(id);
+    const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
     }
 
+    const deleteCuid = await resolveServerCuid(parsedId.data);
+    if (!deleteCuid) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
+    }
+
     const existing = await prisma.server.findUnique({
-      where: { id: parsedId.data },
+      where: { id: deleteCuid },
       select: {
         id: true,
         ownerId: true,

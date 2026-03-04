@@ -2,14 +2,16 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CopyIdBadge } from "@/components/CopyIdBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { ServerCard } from "@/components/ServerCard";
 import { UserAvatar } from "@/components/UserAvatar";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { resolveUserCuid } from "@/lib/lookup";
 import { getPublicUrl } from "@/lib/storage";
 import type { ServerListItem } from "@/lib/types";
-import { userIdSchema } from "@/lib/validation";
+import { userLookupIdSchema } from "@/lib/validation";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -26,16 +28,22 @@ function resolveDisplayName(name: string | null, email: string): string {
   return name?.trim() || email.split("@")[0] || "用户";
 }
 
-const getUser = cache(async (userId: string) => {
-  const parsedUserId = userIdSchema.safeParse(userId);
-  if (!parsedUserId.success) {
+const getUser = cache(async (rawId: string) => {
+  const parsed = userLookupIdSchema.safeParse(rawId);
+  if (!parsed.success) {
+    return null;
+  }
+
+  const cuid = await resolveUserCuid(parsed.data);
+  if (!cuid) {
     return null;
   }
 
   return prisma.user.findUnique({
-    where: { id: parsedUserId.data },
+    where: { id: cuid },
     select: {
       id: true,
+      uid: true,
       name: true,
       email: true,
       image: true,
@@ -48,6 +56,7 @@ const getUser = cache(async (userId: string) => {
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
+          psid: true,
           name: true,
           host: true,
           port: true,
@@ -99,6 +108,7 @@ export default async function UserProfilePage({ params }: PageProps) {
 
   const servers: ServerListItem[] = user.servers.map((server) => ({
     id: server.id,
+    psid: server.psid,
     name: server.name,
     host: server.host,
     port: server.port,
@@ -130,6 +140,9 @@ export default async function UserProfilePage({ params }: PageProps) {
             />
             <div>
               <h1 className="text-2xl font-semibold text-slate-900">{displayName}</h1>
+              <div className="mt-1">
+                <CopyIdBadge label="UID" value={String(user.uid)} />
+              </div>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
                 {user.bio?.trim() || "这个用户还没有填写个人简介。"}
               </p>

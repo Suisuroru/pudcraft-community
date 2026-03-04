@@ -94,6 +94,7 @@ async function getInitialServerList(query: HomeQuery): Promise<{
       orderBy: buildOrderBy(query.sort),
       select: {
         id: true,
+        psid: true,
         name: true,
         host: true,
         port: true,
@@ -115,6 +116,7 @@ async function getInitialServerList(query: HomeQuery): Promise<{
   const totalPages = Math.max(1, Math.ceil(total / DEFAULT_LIMIT));
   const data: ServerListItem[] = servers.map((server) => ({
     id: server.id,
+    psid: server.psid,
     name: server.name,
     host: server.host,
     port: server.port,

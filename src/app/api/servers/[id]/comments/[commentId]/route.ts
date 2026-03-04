@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { serverIdSchema } from "@/lib/validation";
+import { resolveServerCuid } from "@/lib/lookup";
+import { serverIdSchema, serverLookupIdSchema } from "@/lib/validation";
 
 interface RouteContext {
   params: Promise<{ id: string; commentId: string }>;
@@ -22,9 +23,14 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     const userRole = authResult.user.role;
 
     const { id, commentId } = await params;
-    const parsedServerId = serverIdSchema.safeParse(id);
+    const parsedServerId = serverLookupIdSchema.safeParse(id);
     if (!parsedServerId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
+    }
+
+    const serverId = await resolveServerCuid(parsedServerId.data);
+    if (!serverId) {
+      return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
     }
 
     const parsedCommentId = serverIdSchema.safeParse(commentId);
@@ -42,7 +48,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       },
     });
 
-    if (!comment || comment.serverId !== parsedServerId.data) {
+    if (!comment || comment.serverId !== serverId) {
       return NextResponse.json({ error: "评论不存在" }, { status: 404 });
     }
 
