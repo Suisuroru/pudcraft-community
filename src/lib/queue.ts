@@ -23,11 +23,11 @@ export interface VerifyJobResult {
 }
 
 export function getPingJobId(serverId: string): string {
-  return `server-ping:${serverId}`;
+  return `server-ping-${serverId}`;
 }
 
 export function getVerifyJobId(serverId: string, token: string): string {
-  return `server-verify:${serverId}:${token}`;
+  return `server-verify-${serverId}-${token}`;
 }
 
 export const pingQueue = new Queue<PingJobData>(PING_QUEUE_NAME, {
