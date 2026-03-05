@@ -69,7 +69,7 @@ chmod +x /opt/pudcraft/deploy.sh
 
 ### 4.2 Docker Compose `/opt/pudcraft/docker-compose.yml`
 
-将 `IMAGE` 替换为实际镜像地址（如 `ghcr.io/hepudding/pudcraft-community:latest`）。
+将 `IMAGE` 替换为实际镜像地址（如 `ghcr.io/pudcraft-teams/pudcraft-community:latest`）。
 
 ```yaml
 services:

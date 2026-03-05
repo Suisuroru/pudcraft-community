@@ -85,7 +85,7 @@ export default async function ConsoleLayout({ children }: ConsoleLayoutProps) {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-4 md:flex-row">
         <Sidebar servers={servers} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>

@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-10rem)] gap-6">
+    <div className="flex min-h-[calc(100vh-10rem)] flex-col gap-4 md:flex-row md:gap-6">
       <aside className="hidden w-48 shrink-0 md:block">
         <nav className="m3-surface sticky top-24 space-y-1 p-3">
           <h2 className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
