@@ -3,8 +3,6 @@
  * 前端组件与 API Route 统一引用此处的类型。
  */
 
-import type { ServerVisibility, ServerJoinMode } from "@/lib/validation";
-
 /** 服务器状态（来自最新的 ServerStatus 记录） */
 export interface ServerStatusResponse {
   online: boolean;
@@ -303,4 +301,91 @@ export interface AdminChangelogItem {
   authorName: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// ─── 私有服务器类型 ──────────────────────────────
+
+export type ServerVisibility = "public" | "private" | "unlisted";
+export type ServerJoinMode = "open" | "apply" | "invite" | "apply_and_invite";
+export type ApplicationStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type SyncStatus = "pending" | "pushed" | "acked" | "failed";
+
+/** Application form field configuration */
+export interface ApplicationFormField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "multiselect";
+  required: boolean;
+  options?: string[];
+  placeholder?: string;
+}
+
+/** Server application list item */
+export interface ServerApplicationItem {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userImage: string | null;
+  mcUsername: string;
+  status: ApplicationStatus;
+  formData: Record<string, string | string[]> | null;
+  reviewNote: string | null;
+  reviewerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Server invite list item */
+export interface ServerInviteItem {
+  id: string;
+  code: string;
+  creatorName: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+/** Server member list item */
+export interface ServerMemberItem {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userImage: string | null;
+  mcUsername: string | null;
+  joinedVia: "apply" | "invite";
+  createdAt: string;
+  syncStatus: SyncStatus | null;
+}
+
+/** Whitelist sync record */
+export interface WhitelistSyncItem {
+  id: string;
+  memberId: string;
+  mcUsername: string | null;
+  action: "add" | "remove";
+  status: SyncStatus;
+  retryCount: number;
+  lastAttemptAt: string | null;
+  ackedAt: string | null;
+  createdAt: string;
+}
+
+/** Sync status overview (for console) */
+export interface SyncStatusOverview {
+  connected: boolean;
+  pendingCount: number;
+  failedCount: number;
+  lastAckedAt: string | null;
+  recentSyncs: WhitelistSyncItem[];
+}
+
+/** Membership status (for player) */
+export interface MembershipStatus {
+  isMember: boolean;
+  application: {
+    id: string;
+    status: ApplicationStatus;
+    createdAt: string;
+  } | null;
 }
