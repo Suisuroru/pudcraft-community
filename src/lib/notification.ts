@@ -4,7 +4,11 @@ export type NotificationType =
   | "comment_reply"
   | "server_online"
   | "server_approved"
-  | "server_rejected";
+  | "server_rejected"
+  | "application_approved"
+  | "application_rejected"
+  | "member_removed"
+  | "whitelist_sync_failed";
 
 export interface CreateNotificationParams {
   userId: string;
