@@ -47,6 +47,10 @@ export interface ServerDetail extends ServerListItem {
   /** 服务器封面图（保留字段，DB 中存 key，API 返回 public URL） */
   imageUrl: string | null;
   favoriteCount: number;
+  /** 申请表单配置（仅 owner 可见） */
+  applicationForm?: ApplicationFormField[] | null;
+  /** 是否已生成 API Key（仅 owner 可见） */
+  hasApiKey?: boolean;
   createdAt: string;
   updatedAt: string;
 }

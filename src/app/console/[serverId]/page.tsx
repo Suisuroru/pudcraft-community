@@ -14,6 +14,7 @@ import { RecentComments } from "@/components/console/RecentComments";
 import { ServerActions } from "@/components/console/ServerActions";
 import { ServerSettings } from "@/components/console/ServerSettings";
 import { StatCard } from "@/components/console/StatCard";
+import { SyncStatus } from "@/components/console/SyncStatus";
 import type {
   ConsoleHourlyAveragePoint,
   ConsoleStatsDataPoint,
@@ -431,6 +432,16 @@ export default function ConsoleServerPage() {
 
       {server.visibility !== "public" && (
         <MemberList serverId={String(server.psid)} />
+      )}
+
+      {server.visibility !== "public" && (
+        <>
+          <ApiKeyManager
+            serverId={String(server.psid)}
+            hasApiKey={!!server.hasApiKey}
+          />
+          <SyncStatus serverId={String(server.psid)} />
+        </>
       )}
     </div>
   );

@@ -23,7 +23,12 @@ import {
 import { moderateFields } from "@/lib/moderation";
 import { buildServerContent, extractServerContentMetadata } from "@/lib/serverContent";
 import { serverLookupIdSchema, updateServerSchema } from "@/lib/validation";
-import type { ServerDetail, ServerVisibility, ServerJoinMode } from "@/lib/types";
+import type {
+  ApplicationFormField,
+  ServerDetail,
+  ServerJoinMode,
+  ServerVisibility,
+} from "@/lib/types";
 
 function extractTextField(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
@@ -141,6 +146,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       visibility: server.visibility as ServerVisibility,
       joinMode: server.joinMode as ServerJoinMode,
       isMember,
+      ...(session?.user?.id && server.ownerId === session.user.id
+        ? {
+            applicationForm: (server.applicationForm as ApplicationFormField[] | null) ?? null,
+            hasApiKey: !!server.apiKeyHash,
+          }
+        : {}),
       createdAt: server.createdAt.toISOString(),
       updatedAt: server.updatedAt.toISOString(),
       status: {
