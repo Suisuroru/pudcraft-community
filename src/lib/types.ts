@@ -3,6 +3,8 @@
  * 前端组件与 API Route 统一引用此处的类型。
  */
 
+import type { ServerVisibility, ServerJoinMode } from "@/lib/validation";
+
 /** 服务器状态（来自最新的 ServerStatus 记录） */
 export interface ServerStatusResponse {
   online: boolean;
@@ -31,6 +33,12 @@ export interface ServerListItem {
   reviewStatus?: string;
   /** 拒绝原因 */
   rejectReason?: string | null;
+  /** Server visibility */
+  visibility?: ServerVisibility;
+  /** Join mode for private servers */
+  joinMode?: ServerJoinMode;
+  /** Whether current user is a member (for address visibility) */
+  isMember?: boolean;
 }
 
 /** 服务器详情（含 content，用于详情页） */
@@ -129,7 +137,11 @@ export type NotificationType =
   | "comment_reply"
   | "server_online"
   | "server_approved"
-  | "server_rejected";
+  | "server_rejected"
+  | "application_approved"
+  | "application_rejected"
+  | "member_removed"
+  | "whitelist_sync_failed";
 
 /** 单条通知数据 */
 export interface NotificationItem {

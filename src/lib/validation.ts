@@ -106,6 +106,81 @@ export const updateServerSchema = createServerSchema.partial().extend({
   removeIcon: z.coerce.boolean().optional().default(false),
 });
 
+// ─── 私域服务器 Schema ──────────────────────────
+
+/** 服务器可见性 */
+export const serverVisibilitySchema = z.enum(["public", "private", "unlisted"]);
+
+/** 服务器加入模式 */
+export const serverJoinModeSchema = z.enum(["open", "apply", "invite", "apply_and_invite"]);
+
+/** 申请表单字段配置（单个字段） */
+const applicationFormFieldSchema = z.object({
+  key: z.string().min(1).max(50),
+  label: z.string().min(1).max(100),
+  type: z.enum(["text", "textarea", "select", "multiselect"]),
+  required: z.boolean().default(true),
+  options: z.array(z.string().max(100)).max(20).optional(),
+  placeholder: z.string().max(200).optional(),
+});
+
+/** 服务器私域设置 */
+export const updateServerSettingsSchema = z.object({
+  visibility: serverVisibilitySchema.optional(),
+  joinMode: serverJoinModeSchema.optional(),
+  applicationForm: z.array(applicationFormFieldSchema).max(10).nullable().optional(),
+});
+
+/** 提交入服申请 */
+export const createApplicationSchema = z.object({
+  formData: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
+  mcUsername: z
+    .string()
+    .min(3, "MC 用户名至少 3 个字符")
+    .max(16, "MC 用户名最多 16 个字符")
+    .regex(/^[a-zA-Z0-9_]+$/, "MC 用户名只能包含字母、数字和下划线"),
+});
+
+/** 审批申请 */
+export const reviewApplicationSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+  reviewNote: z.string().max(500).optional(),
+});
+
+/** 生成邀请码 */
+export const createInviteSchema = z.object({
+  maxUses: z.number().int().min(1).max(1000).nullable().optional(),
+  expiresInHours: z.number().int().min(1).max(720).nullable().optional(),
+});
+
+/** 使用邀请码加入 */
+export const joinByInviteSchema = z.object({
+  mcUsername: z
+    .string()
+    .min(3, "MC 用户名至少 3 个字符")
+    .max(16, "MC 用户名最多 16 个字符")
+    .regex(/^[a-zA-Z0-9_]+$/, "MC 用户名只能包含字母、数字和下划线"),
+});
+
+/** 插件握手 */
+export const syncHandshakeSchema = z.object({
+  apiKey: z.string().min(1),
+  pluginVersion: z.string().max(50).optional(),
+});
+
+/** 申请列表查询参数 */
+export const queryApplicationsSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  status: z.enum(["all", "pending", "approved", "rejected"]).default("pending"),
+});
+
+/** 成员列表查询参数 */
+export const queryMembersSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 /** 服务器列表查询参数 */
 export const queryServersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -335,3 +410,13 @@ export type QueryChangelogsInput = z.infer<typeof queryChangelogsSchema>;
 export type AdminQueryChangelogsInput = z.infer<typeof adminQueryChangelogsSchema>;
 export type CreateChangelogInput = z.infer<typeof createChangelogSchema>;
 export type UpdateChangelogInput = z.infer<typeof updateChangelogSchema>;
+export type ServerVisibility = z.infer<typeof serverVisibilitySchema>;
+export type ServerJoinMode = z.infer<typeof serverJoinModeSchema>;
+export type UpdateServerSettingsInput = z.infer<typeof updateServerSettingsSchema>;
+export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
+export type ReviewApplicationInput = z.infer<typeof reviewApplicationSchema>;
+export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+export type JoinByInviteInput = z.infer<typeof joinByInviteSchema>;
+export type SyncHandshakeInput = z.infer<typeof syncHandshakeSchema>;
+export type QueryApplicationsInput = z.infer<typeof queryApplicationsSchema>;
+export type QueryMembersInput = z.infer<typeof queryMembersSchema>;
