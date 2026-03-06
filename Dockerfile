@@ -34,6 +34,14 @@ RUN npm install -g esbuild && \
     --tsconfig=tsconfig.json \
     --external:@prisma/client
 
+RUN esbuild src/ws/index.ts \
+    --bundle \
+    --platform=node \
+    --target=node24 \
+    --outfile=dist/ws-server.js \
+    --tsconfig=tsconfig.json \
+    --external:@prisma/client
+
 # Stage 2: Production runner
 FROM base AS runner
 WORKDIR /app
@@ -51,12 +59,17 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Worker bundle
 COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js
 
+# WS server bundle
+COPY --from=builder --chown=nextjs:nodejs /app/dist/ws-server.js ./ws-server.js
+
 # Prisma schema (for migrations)
 COPY --from=builder /app/prisma ./prisma
 
 USER nextjs
 EXPOSE 3000
+EXPOSE 3001
 ENV PORT=3000
+ENV WS_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
