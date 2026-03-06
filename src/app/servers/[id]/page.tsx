@@ -15,9 +15,10 @@ import { prisma } from "@/lib/db";
 import { serializeJsonForScript } from "@/lib/json";
 import { resolveServerCuid } from "@/lib/lookup";
 import { canAccessServer, isServerOwner } from "@/lib/server-access";
+import { canSeeServerAddress } from "@/lib/server-membership";
 import { getPublicUrl } from "@/lib/storage";
 import { timeAgo } from "@/lib/time";
-import type { ServerComment } from "@/lib/types";
+import type { ApplicationStatus, ServerComment } from "@/lib/types";
 import { serverLookupIdSchema } from "@/lib/validation";
 
 const SITE_URL = "https://pudcraft.cn";
@@ -143,6 +144,8 @@ const getServerPageData = cache(async (rawId: string) => {
         status: true,
         rejectReason: true,
         lastPingedAt: true,
+        visibility: true,
+        joinMode: true,
       },
     }),
     prisma.comment.count({ where }),
@@ -207,9 +210,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!canAccessCurrentServer) {
     return { title: "服务器未找到" };
   }
+  const isPublicServer = server.visibility === "public";
   const serverAddress = server.port !== 25565 ? `${server.host}:${server.port}` : server.host;
   const description =
-    server.description?.trim() || `${server.name} - Minecraft 服务器，地址 ${serverAddress}`;
+    server.description?.trim() ||
+    (isPublicServer
+      ? `${server.name} - Minecraft 服务器，地址 ${serverAddress}`
+      : `${server.name} - Minecraft 服务器`);
 
   return {
     title: server.name,
@@ -252,8 +259,21 @@ export default async function ServerDetailPage({ params }: Props) {
     notFound();
   }
 
+  // ─── Address visibility check ───
+  const canSeeAddress = await canSeeServerAddress(
+    { visibility: server.visibility, ownerId: server.ownerId },
+    session?.user?.id,
+    session?.user?.role,
+    server.id,
+  );
+
   const isOnline = server.isOnline;
-  const serverAddress = server.port !== 25565 ? `${server.host}:${server.port}` : server.host;
+  const addressHidden = !canSeeAddress;
+  const serverAddress = addressHidden
+    ? "地址隐藏"
+    : server.port !== 25565
+      ? `${server.host}:${server.port}`
+      : server.host;
   const canViewModpacks = canAccessCurrentServer;
   const favoriteCount = server.favoriteCount;
   const lastPingLabel = server.lastPingedAt ? timeAgo(server.lastPingedAt) : "尚未检测";
@@ -268,18 +288,45 @@ export default async function ServerDetailPage({ params }: Props) {
       }).format(server.verifiedAt)
     : null;
 
+  // ─── Membership & application status ───
+  let isMember = false;
+  let latestApplicationStatus: ApplicationStatus | null = null;
+
   let initialFavorited = false;
   if (session?.user?.id) {
-    const favorite = await prisma.favorite.findUnique({
-      where: {
-        userId_serverId: {
-          userId: session.user.id,
-          serverId: server.id,
+    const [favorite, member, application] = await Promise.all([
+      prisma.favorite.findUnique({
+        where: {
+          userId_serverId: {
+            userId: session.user.id,
+            serverId: server.id,
+          },
         },
-      },
-      select: { id: true },
-    });
+        select: { id: true },
+      }),
+      prisma.serverMember.findUnique({
+        where: {
+          unique_server_member: {
+            serverId: server.id,
+            userId: session.user.id,
+          },
+        },
+        select: { id: true },
+      }),
+      prisma.serverApplication.findFirst({
+        where: {
+          serverId: server.id,
+          userId: session.user.id,
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, status: true },
+      }),
+    ]);
     initialFavorited = !!favorite;
+    isMember = !!member;
+    if (application) {
+      latestApplicationStatus = application.status as ApplicationStatus;
+    }
   }
 
   const modpacks = canViewModpacks
@@ -398,9 +445,21 @@ export default async function ServerDetailPage({ params }: Props) {
             </span>
 
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                {server.name}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  {server.name}
+                </h1>
+                {server.visibility === "unlisted" && (
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
+                    需申请加入
+                  </span>
+                )}
+                {server.visibility === "private" && (
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                    私密服务器
+                  </span>
+                )}
+              </div>
               {server.isVerified && (
                 <div className="mt-1 inline-flex items-center gap-2">
                   <span
@@ -490,8 +549,17 @@ export default async function ServerDetailPage({ params }: Props) {
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <p className="font-mono text-sm text-slate-500">{serverAddress}</p>
-          <CopyServerIpButton address={serverAddress} />
+          {addressHidden ? (
+            <>
+              <p className="text-sm text-slate-400">地址隐藏</p>
+              <span className="text-xs text-slate-400">加入后可见</span>
+            </>
+          ) : (
+            <>
+              <p className="font-mono text-sm text-slate-500">{serverAddress}</p>
+              <CopyServerIpButton address={serverAddress} />
+            </>
+          )}
           <CopyIdBadge label="PSID" value={String(server.psid)} />
         </div>
 
@@ -505,6 +573,78 @@ export default async function ServerDetailPage({ params }: Props) {
             </span>
           ))}
         </div>
+
+        {/* ─── Membership status & join mode (non-public servers, non-owner) ─── */}
+        {server.visibility !== "public" && !isOwner && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            {/* Membership status */}
+            {isMember ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                  已加入
+                </span>
+                <span className="text-xs text-slate-500">你已是该服务器成员</span>
+              </div>
+            ) : isLoggedIn ? (
+              <div className="space-y-2">
+                {/* Latest application status */}
+                {latestApplicationStatus === "pending" && (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
+                      申请审核中
+                    </span>
+                    <span className="text-xs text-slate-500">请等待服主审核</span>
+                  </div>
+                )}
+                {latestApplicationStatus === "rejected" && (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600 ring-1 ring-rose-100">
+                      申请被拒绝
+                    </span>
+                    {(server.joinMode === "apply" || server.joinMode === "apply_and_invite") && (
+                      <Link
+                        href={`/servers/${server.psid}/apply`}
+                        className="text-xs text-teal-600 underline underline-offset-4 hover:text-teal-700"
+                      >
+                        重新申请
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {/* Join mode actions — show when no pending application */}
+                {latestApplicationStatus !== "pending" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(server.joinMode === "apply" || server.joinMode === "apply_and_invite") &&
+                      latestApplicationStatus !== "rejected" && (
+                        <Link
+                          href={`/servers/${server.psid}/apply`}
+                          className="m3-btn m3-btn-tonal rounded-lg px-3 py-1.5 text-xs text-teal-700"
+                        >
+                          申请加入
+                        </Link>
+                      )}
+                    {(server.joinMode === "invite" || server.joinMode === "apply_and_invite") && (
+                      <span className="text-xs text-slate-500">需要邀请码加入</span>
+                    )}
+                    {server.joinMode === "open" && (
+                      <span className="text-xs text-slate-500">该服务器为开放加入</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/login?callbackUrl=${encodeURIComponent(`/servers/${server.psid}`)}`}
+                  className="text-xs text-teal-600 underline underline-offset-4 hover:text-teal-700"
+                >
+                  登录后查看加入方式
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {server.content && (
