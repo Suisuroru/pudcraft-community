@@ -4,11 +4,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ApiKeyManager } from "@/components/console/ApiKeyManager";
 import { ApplicationList } from "@/components/console/ApplicationList";
+import { InviteManager } from "@/components/console/InviteManager";
+import { MemberList } from "@/components/console/MemberList";
 import { PeakHours } from "@/components/console/PeakHours";
 import { PlayerChart } from "@/components/console/PlayerChart";
 import { RecentComments } from "@/components/console/RecentComments";
 import { ServerActions } from "@/components/console/ServerActions";
+import { ServerSettings } from "@/components/console/ServerSettings";
 import { StatCard } from "@/components/console/StatCard";
 import type {
   ConsoleHourlyAveragePoint,
@@ -410,8 +414,23 @@ export default function ConsoleServerPage() {
 
       <RecentComments serverId={String(server.psid)} />
 
+      <ServerSettings
+        serverId={String(server.psid)}
+        initialVisibility={server.visibility ?? "public"}
+        initialJoinMode={server.joinMode ?? "open"}
+        initialApplicationForm={server.applicationForm ?? null}
+      />
+
       {(server.joinMode === "apply" || server.joinMode === "apply_and_invite") && (
         <ApplicationList serverId={String(server.psid)} />
+      )}
+
+      {(server.joinMode === "invite" || server.joinMode === "apply_and_invite") && (
+        <InviteManager serverId={String(server.psid)} serverPsid={server.psid} />
+      )}
+
+      {server.visibility !== "public" && (
+        <MemberList serverId={String(server.psid)} />
       )}
     </div>
   );
