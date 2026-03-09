@@ -7,7 +7,6 @@ import { CopyIdBadge } from "@/components/CopyIdBadge";
 import { CopyServerIpButton } from "@/components/CopyServerIpButton";
 import { CommentSection } from "@/components/CommentSection";
 import { DeleteModpackButton } from "@/components/DeleteModpackButton";
-import { DeleteServerDialog } from "@/components/DeleteServerDialog";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { auth } from "@/lib/auth";
@@ -274,7 +273,7 @@ export default async function ServerDetailPage({ params }: Props) {
     : server.port !== 25565
       ? `${server.host}:${server.port}`
       : server.host;
-  const canViewModpacks = canAccessCurrentServer;
+  const canViewModpacks = canSeeAddress;
   const favoriteCount = server.favoriteCount;
   const lastPingLabel = server.lastPingedAt ? timeAgo(server.lastPingedAt) : "尚未检测";
   const verifiedAtLabel = server.verifiedAt
@@ -413,12 +412,12 @@ export default async function ServerDetailPage({ params }: Props) {
             )}
 
             {isOwner && (
-              <DeleteServerDialog
-                serverId={server.id}
-                serverName={server.name}
-                redirectTo="/console"
-                triggerClassName="m3-btn m3-btn-danger rounded-lg px-3 py-1.5 text-xs"
-              />
+              <Link
+                href={`/console/${server.id}`}
+                className="m3-btn m3-btn-tonal rounded-lg px-3 py-1.5 text-xs text-teal-700"
+              >
+                打开控制台
+              </Link>
             )}
 
             {!isLoggedIn && !server.isVerified && (
@@ -650,7 +649,13 @@ export default async function ServerDetailPage({ params }: Props) {
       {server.content && (
         <section className="m3-surface p-4 sm:p-6">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">服务器介绍</h2>
-          <MarkdownRenderer content={server.content} />
+          <MarkdownRenderer
+            content={
+              canSeeAddress
+                ? server.content
+                : server.content.replace(/^- QQ 群：.*$/m, "").trim()
+            }
+          />
         </section>
       )}
 

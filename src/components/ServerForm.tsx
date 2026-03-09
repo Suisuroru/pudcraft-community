@@ -102,6 +102,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
   const [iconUploadResetKey, setIconUploadResetKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ServerFormErrors>({});
+  const [isPrivate, setIsPrivate] = useState(false);
   const [isContentDirty, setIsContentDirty] = useState(false);
   const contentEditorRef = useRef<MarkdownEditorHandle | null>(null);
 
@@ -299,6 +300,10 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
         formData.set("qqGroup", normalizedQqGroup);
       }
 
+      if (mode === "create" && isPrivate) {
+        formData.set("visibility", "private");
+      }
+
       if (mode === "edit") {
         formData.set("removeIcon", String(removeCurrentIcon));
       }
@@ -471,6 +476,27 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
             )}
           </label>
         </div>
+
+        {mode === "create" && (
+          <div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300">
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-700">
+                  设为私密服务器
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  开启后服务器不会出现在首页列表，仅通过邀请或申请可加入。你可以稍后在控制台中配置加入方式等详细设置。
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
 
         <div>
           <p className="text-sm text-slate-700">服务器图标（选填）</p>

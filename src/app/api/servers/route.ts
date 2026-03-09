@@ -255,6 +255,7 @@ export async function POST(request: Request) {
       content: extractTextField(formData, "content") ?? "",
       maxPlayers: maxPlayersRaw,
       qqGroup: extractTextField(formData, "qqGroup") ?? "",
+      visibility: extractOptionalTextField(formData, "visibility"),
     });
 
     if (!parsed.success) {
@@ -264,7 +265,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, address, port, version, tags, description, content, maxPlayers, qqGroup } =
+    const { name, address, port, version, tags, description, content, maxPlayers, qqGroup, visibility } =
       parsed.data;
 
     // ─── 内容审查 ───
@@ -347,6 +348,7 @@ export async function POST(request: Request) {
             tags,
             ownerId: userId,
             maxPlayers: typeof maxPlayers === "number" ? maxPlayers : 0,
+            visibility: visibility ?? "public",
           },
         });
       });

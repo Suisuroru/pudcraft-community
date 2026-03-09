@@ -99,10 +99,11 @@ export const createServerSchema = z.object({
     .regex(/^\d{5,11}$/, "QQ 群号格式不正确")
     .optional()
     .or(z.literal("")),
+  visibility: z.enum(["public", "private"]).optional(),
 });
 
 /** 编辑服务器请求体 */
-export const updateServerSchema = createServerSchema.partial().extend({
+export const updateServerSchema = createServerSchema.omit({ visibility: true }).partial().extend({
   removeIcon: z.coerce.boolean().optional().default(false),
 });
 

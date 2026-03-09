@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { canAccessServer } from "@/lib/server-access";
+import { canSeeServerAddress } from "@/lib/server-membership";
 import { createObjectReadStream, getObjectFileInfo, getSignedUrl } from "@/lib/storage";
 import { modpackIdSchema } from "@/lib/validation";
 
@@ -86,8 +87,10 @@ export async function GET(
         fileKey: true,
         server: {
           select: {
+            id: true,
             ownerId: true,
             status: true,
+            visibility: true,
           },
         },
       },
@@ -107,6 +110,19 @@ export async function GET(
     if (!canAccessCurrentServer) {
       return NextResponse.json(
         { error: "服务器未通过审核，整合包暂不可公开下载" },
+        { status: 403 },
+      );
+    }
+
+    const canView = await canSeeServerAddress(
+      { visibility: modpack.server.visibility, ownerId: modpack.server.ownerId },
+      session?.user?.id,
+      session?.user?.role,
+      modpack.server.id,
+    );
+    if (!canView) {
+      return NextResponse.json(
+        { error: "你不是该服务器成员，无法下载整合包" },
         { status: 403 },
       );
     }
