@@ -127,6 +127,7 @@ const applicationFormFieldSchema = z.object({
 /** 服务器私域设置 */
 export const updateServerSettingsSchema = z.object({
   visibility: serverVisibilitySchema.optional(),
+  discoverable: z.boolean().optional(),
   joinMode: serverJoinModeSchema.optional(),
   applicationForm: z.array(applicationFormFieldSchema).max(10).nullable().optional(),
 });
@@ -166,6 +167,17 @@ export const joinByInviteSchema = z.object({
 export const syncHandshakeSchema = z.object({
   apiKey: z.string().min(1),
   pluginVersion: z.string().max(50).optional(),
+});
+
+/** 插件状态上报 */
+export const statusReportSchema = z.object({
+  online: z.boolean(),
+  playerCount: z.number().int().min(0),
+  maxPlayers: z.number().int().min(0),
+  tps: z.number().min(0).max(20).optional(),
+  memoryUsed: z.number().int().min(0).optional(),
+  memoryMax: z.number().int().min(0).optional(),
+  version: z.string().max(128).optional(),
 });
 
 /** 申请列表查询参数 */
@@ -418,5 +430,6 @@ export type ReviewApplicationInput = z.infer<typeof reviewApplicationSchema>;
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 export type JoinByInviteInput = z.infer<typeof joinByInviteSchema>;
 export type SyncHandshakeInput = z.infer<typeof syncHandshakeSchema>;
+export type StatusReportInput = z.infer<typeof statusReportSchema>;
 export type QueryApplicationsInput = z.infer<typeof queryApplicationsSchema>;
 export type QueryMembersInput = z.infer<typeof queryMembersSchema>;

@@ -121,9 +121,9 @@ export async function GET(request: Request) {
         where.status = "approved";
       }
     } else {
-      // 普通访问只显示已通过审核的服务器，且排除私有服务器
+      // 普通访问只显示已通过审核的服务器，排除未开启「首页发现」的私有服务器
       where.status = "approved";
-      where.visibility = { not: "private" };
+      where.NOT = { visibility: "private", discoverable: false };
     }
 
     const orderBy: Prisma.ServerOrderByWithRelationInput[] = [{ isOnline: "desc" }];
@@ -156,14 +156,14 @@ export async function GET(request: Request) {
 
     const totalPages = Math.max(1, Math.ceil(total / take));
 
-    // ─── 批量检查 unlisted 服务器成员关系 ───
-    const unlistedServerIds = servers
-      .filter((s) => s.visibility === "unlisted")
+    // ─── 批量检查非公开服务器成员关系（unlisted + discoverable private） ───
+    const nonPublicServerIds = servers
+      .filter((s) => s.visibility !== "public")
       .map((s) => s.id);
     let memberServerIds: Set<string> = new Set();
-    if (session?.user?.id && unlistedServerIds.length > 0) {
+    if (session?.user?.id && nonPublicServerIds.length > 0) {
       const memberships = await prisma.serverMember.findMany({
-        where: { userId: session.user.id, serverId: { in: unlistedServerIds } },
+        where: { userId: session.user.id, serverId: { in: nonPublicServerIds } },
         select: { serverId: true },
       });
       memberServerIds = new Set(memberships.map((m) => m.serverId));

@@ -72,9 +72,11 @@ model Server {
   status          String    @default("pending") // pending | approved | rejected
   rejectReason    String?   @map("reject_reason")
   visibility      String    @default("public") @map("visibility") // public | private | unlisted
+  discoverable    Boolean   @default(false) @map("discoverable") // 非公开服务器是否出现在首页发现列表
   joinMode        String    @default("open") @map("join_mode") // open | apply | invite | apply_and_invite
   applicationForm Json?     @map("application_form")
-  apiKeyHash      String?   @map("api_key_hash")
+  apiKeyHash          String?   @map("api_key_hash")
+  lastPluginReportAt  DateTime? @map("last_plugin_report_at")
 
   content String? @db.Text // Markdown 详细介绍
 
@@ -153,6 +155,7 @@ model ServerStatus {
   favicon     String?  @db.Text
   version     String?
   error       String?  @db.Text
+  pluginExtra Json?    @map("plugin_extra")
   checkedAt   DateTime @default(now()) @map("checked_at")
 
   server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)

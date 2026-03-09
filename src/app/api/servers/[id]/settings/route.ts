@@ -58,11 +58,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       );
     }
 
-    const { visibility, joinMode, applicationForm } = parsed.data;
+    const { visibility, discoverable, joinMode, applicationForm } = parsed.data;
 
     const updateData: Record<string, unknown> = {};
     if (visibility !== undefined) {
       updateData.visibility = visibility;
+      // 切换为公开时自动关闭 discoverable（公开服务器不需要此开关）
+      if (visibility === "public") {
+        updateData.discoverable = false;
+      }
+    }
+    if (discoverable !== undefined) {
+      updateData.discoverable = discoverable;
     }
     if (joinMode !== undefined) {
       updateData.joinMode = joinMode;
@@ -77,6 +84,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       select: {
         id: true,
         visibility: true,
+        discoverable: true,
         joinMode: true,
         applicationForm: true,
         updatedAt: true,
@@ -87,6 +95,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       success: true,
       data: {
         visibility: updated.visibility,
+        discoverable: updated.discoverable,
         joinMode: updated.joinMode,
         applicationForm: updated.applicationForm,
         updatedAt: updated.updatedAt.toISOString(),

@@ -50,10 +50,12 @@ httpServer.on("upgrade", (req, socket, head) => {
 
   const tokenHash = createHash("sha256").update(token).digest("hex");
 
+  const isNumeric = /^\d+$/.test(serverId);
+
   prisma.server
     .findUnique({
-      where: { id: serverId },
-      select: { apiKeyHash: true },
+      where: isNumeric ? { psid: Number(serverId) } : { id: serverId },
+      select: { id: true, apiKeyHash: true },
     })
     .then((server) => {
       if (!server || server.apiKeyHash !== tokenHash) {
@@ -63,7 +65,7 @@ httpServer.on("upgrade", (req, socket, head) => {
       }
 
       wss.handleUpgrade(req, socket, head, (ws) => {
-        wss.emit("connection", ws, req, serverId);
+        wss.emit("connection", ws, req, server.id);
       });
     })
     .catch((err) => {

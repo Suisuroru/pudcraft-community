@@ -418,8 +418,10 @@ export default function ConsoleServerPage() {
       <ServerSettings
         serverId={String(server.psid)}
         initialVisibility={server.visibility ?? "public"}
+        initialDiscoverable={server.discoverable ?? false}
         initialJoinMode={server.joinMode ?? "open"}
         initialApplicationForm={server.applicationForm ?? null}
+        onSaved={fetchServer}
       />
 
       {(server.joinMode === "apply" || server.joinMode === "apply_and_invite") && (

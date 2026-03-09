@@ -40,8 +40,10 @@ const MAX_FORM_FIELDS = 10;
 interface ServerSettingsProps {
   serverId: string;
   initialVisibility: string;
+  initialDiscoverable: boolean;
   initialJoinMode: string;
   initialApplicationForm: ApplicationFormField[] | null;
+  onSaved?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────
@@ -85,12 +87,15 @@ function joinModeIncludesApply(joinMode: ServerJoinMode): boolean {
 export function ServerSettings({
   serverId,
   initialVisibility,
+  initialDiscoverable,
   initialJoinMode,
   initialApplicationForm,
+  onSaved,
 }: ServerSettingsProps) {
   const [visibility, setVisibility] = useState<ServerVisibility>(
     isValidVisibility(initialVisibility) ? initialVisibility : "public",
   );
+  const [discoverable, setDiscoverable] = useState(initialDiscoverable);
   const [joinMode, setJoinMode] = useState<ServerJoinMode>(
     isValidJoinMode(initialJoinMode) ? initialJoinMode : "open",
   );
@@ -101,10 +106,11 @@ export function ServerSettings({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Reset joinMode to "open" when switching to public
+  // Reset joinMode and discoverable when switching to public
   useEffect(() => {
     if (visibility === "public") {
       setJoinMode("open");
+      setDiscoverable(false);
     }
   }, [visibility]);
 
@@ -130,10 +136,11 @@ export function ServerSettings({
 
   const hasChanges = useMemo(() => {
     const visChanged = visibility !== (isValidVisibility(initialVisibility) ? initialVisibility : "public");
+    const discChanged = discoverable !== initialDiscoverable;
     const joinChanged = joinMode !== (isValidJoinMode(initialJoinMode) ? initialJoinMode : "open");
     const formChanged = JSON.stringify(formFields) !== JSON.stringify(initialApplicationForm ?? []);
-    return visChanged || joinChanged || formChanged;
-  }, [visibility, joinMode, formFields, initialVisibility, initialJoinMode, initialApplicationForm]);
+    return visChanged || discChanged || joinChanged || formChanged;
+  }, [visibility, discoverable, joinMode, formFields, initialVisibility, initialDiscoverable, initialJoinMode, initialApplicationForm]);
 
   // ─── Field management ───
 
@@ -215,6 +222,7 @@ export function ServerSettings({
 
       const body: Record<string, unknown> = {
         visibility,
+        discoverable: showJoinModeSelector ? discoverable : false,
         joinMode: showJoinModeSelector ? joinMode : "open",
         applicationForm: showApplicationForm ? formFields : null,
       };
@@ -234,13 +242,14 @@ export function ServerSettings({
       }
 
       setSaveSuccess(true);
+      onSaved?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "保存失败";
       setSaveError(message);
     } finally {
       setIsSaving(false);
     }
-  }, [visibility, joinMode, formFields, serverId, showJoinModeSelector, showApplicationForm]);
+  }, [visibility, discoverable, joinMode, formFields, serverId, showJoinModeSelector, showApplicationForm, onSaved]);
 
   return (
     <section className="m3-surface p-4 sm:p-5">
@@ -283,6 +292,30 @@ export function ServerSettings({
           ))}
         </div>
       </div>
+
+      {/* ─── Discoverable toggle ─── */}
+      {showJoinModeSelector && (
+        <div className="mt-6">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 transition-colors hover:border-gray-300">
+            <input
+              type="checkbox"
+              checked={discoverable}
+              onChange={(e) => {
+                setDiscoverable(e.target.checked);
+              }}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-700">
+                在首页发现中展示
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                开启后，服务器会出现在首页列表中（地址仍然对非成员隐藏）。关闭则仅通过邀请链接或直接访问可见。
+              </p>
+            </div>
+          </label>
+        </div>
+      )}
 
       {/* ─── Join mode selector ─── */}
       {showJoinModeSelector && (

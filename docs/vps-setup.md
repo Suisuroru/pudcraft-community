@@ -71,60 +71,19 @@ chmod +x /opt/pudcraft/deploy.sh
 
 将 `IMAGE` 替换为实际镜像地址（如 `ghcr.io/pudcraft-teams/pudcraft-community:latest`）。
 
-```yaml
-services:
-  web:
-    image: IMAGE:latest
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    env_file: .env.production
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+项目根目录已包含 `docker-compose.yml`，直接复制到 VPS 即可：
 
-  worker:
-    image: IMAGE:latest
-    restart: unless-stopped
-    command: ["node", "worker.js"]
-    env_file: .env.production
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    env_file: .env.production
-    environment:
-      POSTGRES_DB: pudcraft
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-volumes:
-  pgdata:
-  redisdata:
+```bash
+scp docker-compose.yml root@VPS_IP:/opt/pudcraft/
 ```
+
+如需自定义镜像地址，设置 `IMAGE` 环境变量：
+
+```bash
+IMAGE=ghcr.io/你的用户名/pudcraft-community docker compose up -d
+```
+
+> 配置包含 3 个应用服务：`web`（Next.js，端口 3000）、`worker`（BullMQ 队列）、`ws`（WebSocket 白名单同步，端口 3001）。
 
 ### 4.3 环境变量 `/opt/pudcraft/.env.production`
 
@@ -155,6 +114,9 @@ SMTP_PORT=
 SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=
+
+# WebSocket（插件白名单同步）
+WS_PUBLIC_URL=wss://你的域名/ws
 ```
 
 ## 5. 首次部署
@@ -197,6 +159,7 @@ docker compose run --rm web npx prisma migrate deploy
 # 查看日志
 docker compose logs -f web
 docker compose logs -f worker
+docker compose logs -f ws
 
 # 重启单个服务
 docker compose restart web

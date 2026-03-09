@@ -146,9 +146,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       visibility: server.visibility as ServerVisibility,
       joinMode: server.joinMode as ServerJoinMode,
       isMember,
-      ...(session?.user?.id && server.ownerId === session.user.id
+      // applicationForm: expose to owner always; expose to others when joinMode supports apply
+      ...(server.joinMode === "apply" || server.joinMode === "apply_and_invite"
         ? {
             applicationForm: (server.applicationForm as ApplicationFormField[] | null) ?? null,
+          }
+        : {}),
+      ...(session?.user?.id && server.ownerId === session.user.id
+        ? {
+            discoverable: server.discoverable,
             hasApiKey: !!server.apiKeyHash,
           }
         : {}),

@@ -72,6 +72,8 @@ async function getInitialServerList(query: HomeQuery): Promise<{
 }> {
   const where: Prisma.ServerWhereInput = {
     status: "approved",
+    // 排除未开启「首页发现」的私有服务器
+    NOT: { visibility: "private", discoverable: false },
   };
 
   if (query.tag) {
@@ -109,17 +111,22 @@ async function getInitialServerList(query: HomeQuery): Promise<{
         maxPlayers: true,
         lastPingedAt: true,
         updatedAt: true,
+        visibility: true,
       },
     }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / DEFAULT_LIMIT));
-  const data: ServerListItem[] = servers.map((server) => ({
+  const data: ServerListItem[] = servers.map((server) => {
+    // 非公开服务器在首页 SSR 中隐藏地址
+    const canSeeAddress = server.visibility === "public";
+
+    return {
     id: server.id,
     psid: server.psid,
     name: server.name,
-    host: server.host,
-    port: server.port,
+    host: canSeeAddress ? server.host : "hidden",
+    port: canSeeAddress ? server.port : 0,
     description: server.description,
     tags: server.tags,
     iconUrl: getPublicUrl(server.iconUrl),
@@ -134,7 +141,8 @@ async function getInitialServerList(query: HomeQuery): Promise<{
       favicon: null,
       checkedAt: (server.lastPingedAt ?? server.updatedAt).toISOString(),
     },
-  }));
+  };
+  });
 
   return {
     servers: data,
