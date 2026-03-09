@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { hashApiKey } from "@/lib/api-key";
+import { serverIdSchema } from "@/lib/validation";
 
 /**
  * POST /api/sync/:syncId/ack
@@ -14,9 +15,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ syn
   try {
     const { syncId } = await params;
 
+    const parsedSyncId = serverIdSchema.safeParse(syncId);
+    if (!parsedSyncId.success) {
+      return NextResponse.json({ error: "无效的同步记录 ID 格式" }, { status: 400 });
+    }
+
     // Find the sync record to get the serverId
     const sync = await prisma.whitelistSync.findUnique({
-      where: { id: syncId },
+      where: { id: parsedSyncId.data },
       select: { id: true, serverId: true, status: true },
     });
 

@@ -131,8 +131,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     const { maxUses, expiresInHours } = parsed.data;
 
-    // 生成 8 位十六进制邀请码
-    const code = randomBytes(4).toString("hex");
+    // 生成 16 位十六进制邀请码（8 字节熵）
+    const code = randomBytes(8).toString("hex");
 
     // 计算过期时间
     const expiresAt =

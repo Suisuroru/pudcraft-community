@@ -100,6 +100,7 @@ model Server {
 
   @@unique([host, port], name: "unique_host_port")
   @@index([status])
+  @@index([status, visibility, discoverable])
   @@index([ownerId])
   @@map("servers")
 }

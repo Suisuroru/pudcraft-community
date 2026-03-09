@@ -55,42 +55,42 @@ export async function POST(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
     }
 
-    // 查找邀请码
-    const invite = await prisma.serverInvite.findFirst({
-      where: { serverId: server.id, code },
-    });
-
-    if (!invite) {
-      return NextResponse.json({ error: "邀请码无效" }, { status: 404 });
-    }
-
-    // 检查是否过期
-    if (invite.expiresAt && invite.expiresAt <= new Date()) {
-      return NextResponse.json({ error: "邀请码已过期" }, { status: 410 });
-    }
-
-    // 检查使用次数
-    if (invite.maxUses && invite.usedCount >= invite.maxUses) {
-      return NextResponse.json({ error: "邀请码已达使用上限" }, { status: 410 });
-    }
-
-    // 检查是否已是成员
-    const existingMember = await prisma.serverMember.findUnique({
-      where: {
-        unique_server_member: {
-          serverId: server.id,
-          userId,
-        },
-      },
-      select: { id: true },
-    });
-
-    if (existingMember) {
-      return NextResponse.json({ error: "你已经是该服务器成员" }, { status: 409 });
-    }
-
-    // 在事务中创建成员、更新邀请码使用计数、创建白名单同步记录
+    // 在事务中完成所有检查和写操作，避免竞态条件
     const result = await prisma.$transaction(async (tx) => {
+      // 查找邀请码
+      const invite = await tx.serverInvite.findFirst({
+        where: { serverId: server.id, code },
+      });
+
+      if (!invite) {
+        return { error: "邀请码无效", status: 404 } as const;
+      }
+
+      // 检查是否过期
+      if (invite.expiresAt && invite.expiresAt <= new Date()) {
+        return { error: "邀请码已过期", status: 410 } as const;
+      }
+
+      // 检查使用次数
+      if (invite.maxUses && invite.usedCount >= invite.maxUses) {
+        return { error: "邀请码已达使用上限", status: 410 } as const;
+      }
+
+      // 检查是否已是成员
+      const existingMember = await tx.serverMember.findUnique({
+        where: {
+          unique_server_member: {
+            serverId: server.id,
+            userId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingMember) {
+        return { error: "你已经是该服务器成员", status: 409 } as const;
+      }
+
       const member = await tx.serverMember.create({
         data: {
           serverId: server.id,
@@ -116,6 +116,11 @@ export async function POST(request: Request, { params }: RouteContext) {
 
       return { member, sync };
     });
+
+    // 事务返回错误则直接响应
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
 
     // 发布白名单变更事件（副作用失败不阻塞主操作）
     try {

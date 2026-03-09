@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveServerCuid } from "@/lib/lookup";
 import { publishWhitelistChange } from "@/lib/whitelist-pubsub";
-import { serverLookupIdSchema, reviewApplicationSchema } from "@/lib/validation";
+import { createNotification } from "@/lib/notification";
+import { serverLookupIdSchema, serverIdSchema, reviewApplicationSchema } from "@/lib/validation";
 
 interface RouteContext {
   params: Promise<{ id: string; appId: string }>;
@@ -26,10 +27,15 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
     const { id, appId } = await params;
 
-    // Validate server ID
+    // Validate server ID and appId
     const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {
       return NextResponse.json({ error: "无效的服务器 ID 格式" }, { status: 400 });
+    }
+
+    const parsedAppId = serverIdSchema.safeParse(appId);
+    if (!parsedAppId.success) {
+      return NextResponse.json({ error: "无效的申请 ID 格式" }, { status: 400 });
     }
 
     const cuid = await resolveServerCuid(parsedId.data);
@@ -65,7 +71,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
     // Fetch application and verify it belongs to this server
     const application = await prisma.serverApplication.findUnique({
-      where: { id: appId },
+      where: { id: parsedAppId.data },
       select: {
         id: true,
         serverId: true,
@@ -140,15 +146,13 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
       // Create notification for applicant (fire-and-forget)
       try {
-        await prisma.notification.create({
-          data: {
-            userId: application.userId,
-            type: "application_approved",
-            title: "入服申请已通过",
-            message: `你的「${server.name}」入服申请已通过`,
-            link: `/servers/${server.psid}`,
-            serverId: server.id,
-          },
+        await createNotification({
+          userId: application.userId,
+          type: "application_approved",
+          title: "入服申请已通过",
+          message: `你的「${server.name}」入服申请已通过`,
+          link: `/servers/${server.psid}`,
+          serverId: server.id,
         });
       } catch (err) {
         logger.warn("[api/servers/[id]/applications/[appId]] create approve notification failed", err);
@@ -175,15 +179,13 @@ export async function PUT(request: Request, { params }: RouteContext) {
 
     // Create notification for applicant (fire-and-forget)
     try {
-      await prisma.notification.create({
-        data: {
-          userId: application.userId,
-          type: "application_rejected",
-          title: "入服申请未通过",
-          message: `你的「${server.name}」入服申请未通过${reviewNote ? `：${reviewNote}` : ""}`,
-          link: `/servers/${server.psid}`,
-          serverId: server.id,
-        },
+      await createNotification({
+        userId: application.userId,
+        type: "application_rejected",
+        title: "入服申请未通过",
+        message: `你的「${server.name}」入服申请未通过${reviewNote ? `：${reviewNote}` : ""}`,
+        link: `/servers/${server.psid}`,
+        serverId: server.id,
       });
     } catch (err) {
       logger.warn("[api/servers/[id]/applications/[appId]] create reject notification failed", err);

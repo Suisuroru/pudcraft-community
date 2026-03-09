@@ -73,7 +73,11 @@ export default function InviteJoinPage() {
 
       const data: unknown = await response.json();
       if (typeof data === "object" && data !== null) {
-        const payload = data as Record<string, unknown>;
+        const body = data as Record<string, unknown>;
+        const payload =
+          typeof body.data === "object" && body.data !== null
+            ? (body.data as Record<string, unknown>)
+            : body;
         setServerInfo({
           name: typeof payload.name === "string" ? payload.name : "未知服务器",
           psid: typeof payload.psid === "number" ? payload.psid : 0,
