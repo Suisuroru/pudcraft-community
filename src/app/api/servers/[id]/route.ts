@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveServerCuid } from "@/lib/lookup";
 import { canAccessServer } from "@/lib/server-access";
+import { canSeeServerAddress, isServerMember } from "@/lib/server-membership";
 import { getClientIp } from "@/lib/request-ip";
 import {
   deleteFile,
@@ -22,7 +23,12 @@ import {
 import { moderateFields } from "@/lib/moderation";
 import { buildServerContent, extractServerContentMetadata } from "@/lib/serverContent";
 import { serverLookupIdSchema, updateServerSchema } from "@/lib/validation";
-import type { ServerDetail } from "@/lib/types";
+import type {
+  ApplicationFormField,
+  ServerDetail,
+  ServerJoinMode,
+  ServerVisibility,
+} from "@/lib/types";
 
 function extractTextField(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
@@ -91,9 +97,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
     }
 
+    const session = await auth();
+
     // ─── 审核状态访问控制 ───
     if (server.status !== "approved") {
-      const session = await auth();
       const canAccessCurrentServer = canAccessServer({
         status: server.status,
         ownerId: server.ownerId,
@@ -105,12 +112,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    // ─── 地址可见性检查 ───
+    const canSeeAddress = await canSeeServerAddress(
+      { visibility: server.visibility, ownerId: server.ownerId },
+      session?.user?.id,
+      session?.user?.role,
+      server.id,
+    );
+
+    // ─── 成员状态检查 ───
+    let isMember = false;
+    if (session?.user?.id) {
+      isMember = await isServerMember(server.id, session.user.id);
+    }
+
     const data: ServerDetail = {
       id: server.id,
       psid: server.psid,
       name: server.name,
-      host: server.host,
-      port: server.port,
+      host: canSeeAddress ? server.host : "hidden",
+      port: canSeeAddress ? server.port : 0,
       description: server.description,
       content: server.content,
       ownerId: server.ownerId,
@@ -122,6 +143,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       verifiedAt: server.verifiedAt?.toISOString() ?? null,
       reviewStatus: server.status,
       rejectReason: server.rejectReason,
+      visibility: server.visibility as ServerVisibility,
+      joinMode: server.joinMode as ServerJoinMode,
+      isMember,
+      // applicationForm: expose to owner always; expose to others when joinMode supports apply
+      ...(server.joinMode === "apply" || server.joinMode === "apply_and_invite"
+        ? {
+            applicationForm: (server.applicationForm as ApplicationFormField[] | null) ?? null,
+          }
+        : {}),
+      ...(session?.user?.id && server.ownerId === session.user.id
+        ? {
+            discoverable: server.discoverable,
+            hasApiKey: !!server.apiKeyHash,
+          }
+        : {}),
       createdAt: server.createdAt.toISOString(),
       updatedAt: server.updatedAt.toISOString(),
       status: {

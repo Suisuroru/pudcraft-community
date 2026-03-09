@@ -20,7 +20,7 @@ import {
 import { moderateFields } from "@/lib/moderation";
 import { buildServerContent } from "@/lib/serverContent";
 import { createServerSchema, queryServersSchema } from "@/lib/validation";
-import type { ServerListItem } from "@/lib/types";
+import type { ServerListItem, ServerVisibility, ServerJoinMode } from "@/lib/types";
 
 function extractTextField(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
@@ -121,8 +121,9 @@ export async function GET(request: Request) {
         where.status = "approved";
       }
     } else {
-      // 普通访问只显示已通过审核的服务器
+      // 普通访问只显示已通过审核的服务器，排除未开启「首页发现」的私有服务器
       where.status = "approved";
+      where.NOT = { visibility: "private", discoverable: false };
     }
 
     const orderBy: Prisma.ServerOrderByWithRelationInput[] = [{ isOnline: "desc" }];
@@ -155,30 +156,53 @@ export async function GET(request: Request) {
 
     const totalPages = Math.max(1, Math.ceil(total / take));
 
+    // ─── 批量检查非公开服务器成员关系（unlisted + discoverable private） ───
+    const nonPublicServerIds = servers
+      .filter((s) => s.visibility !== "public")
+      .map((s) => s.id);
+    let memberServerIds: Set<string> = new Set();
+    if (session?.user?.id && nonPublicServerIds.length > 0) {
+      const memberships = await prisma.serverMember.findMany({
+        where: { userId: session.user.id, serverId: { in: nonPublicServerIds } },
+        select: { serverId: true },
+      });
+      memberServerIds = new Set(memberships.map((m) => m.serverId));
+    }
+
     // ─── 映射为 API 响应格式 ───
-    const data: ServerListItem[] = servers.map((server) => ({
-      id: server.id,
-      psid: server.psid,
-      name: server.name,
-      host: server.host,
-      port: server.port,
-      description: server.description,
-      tags: server.tags,
-      iconUrl: getPublicUrl(server.iconUrl),
-      favoriteCount: server.favoriteCount,
-      isVerified: server.isVerified,
-      verifiedAt: server.verifiedAt?.toISOString() ?? null,
-      reviewStatus: server.status,
-      rejectReason: server.rejectReason,
-      status: {
-        online: server.isOnline,
-        playerCount: server.playerCount,
-        maxPlayers: server.maxPlayers,
-        motd: null,
-        favicon: null,
-        checkedAt: (server.lastPingedAt ?? server.updatedAt).toISOString(),
-      },
-    }));
+    const data: ServerListItem[] = servers.map((server) => {
+      const isAdmin = session?.user?.role === "admin";
+      const isOwner = session?.user?.id === server.ownerId;
+      const isMember = memberServerIds.has(server.id);
+      const canSeeAddress =
+        server.visibility === "public" || isAdmin || isOwner || isMember;
+
+      return {
+        id: server.id,
+        psid: server.psid,
+        name: server.name,
+        host: canSeeAddress ? server.host : "hidden",
+        port: canSeeAddress ? server.port : 0,
+        description: server.description,
+        tags: server.tags,
+        iconUrl: getPublicUrl(server.iconUrl),
+        favoriteCount: server.favoriteCount,
+        isVerified: server.isVerified,
+        verifiedAt: server.verifiedAt?.toISOString() ?? null,
+        reviewStatus: server.status,
+        rejectReason: server.rejectReason,
+        visibility: server.visibility as ServerVisibility,
+        joinMode: server.joinMode as ServerJoinMode,
+        status: {
+          online: server.isOnline,
+          playerCount: server.playerCount,
+          maxPlayers: server.maxPlayers,
+          motd: null,
+          favicon: null,
+          checkedAt: (server.lastPingedAt ?? server.updatedAt).toISOString(),
+        },
+      };
+    });
 
     return NextResponse.json({
       data,

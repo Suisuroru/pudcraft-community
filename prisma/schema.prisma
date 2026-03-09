@@ -38,6 +38,10 @@ model User {
   notifications  Notification[]
   moderationLogs ModerationLog[]
   changelogs     Changelog[]
+  applications   ServerApplication[] @relation("ApplicationUser")
+  reviewedApps   ServerApplication[] @relation("ApplicationReviewer")
+  serverInvites  ServerInvite[]
+  serverMembers  ServerMember[]
 
   @@map("users")
 }
@@ -67,6 +71,12 @@ model Server {
   lastPingedAt    DateTime? @map("last_pinged_at")
   status          String    @default("pending") // pending | approved | rejected
   rejectReason    String?   @map("reject_reason")
+  visibility      String    @default("public") @map("visibility") // public | private | unlisted
+  discoverable    Boolean   @default(false) @map("discoverable") // 非公开服务器是否出现在首页发现列表
+  joinMode        String    @default("open") @map("join_mode") // open | apply | invite | apply_and_invite
+  applicationForm Json?     @map("application_form")
+  apiKeyHash          String?   @map("api_key_hash")
+  lastPluginReportAt  DateTime? @map("last_plugin_report_at")
 
   content String? @db.Text // Markdown 详细介绍
 
@@ -76,16 +86,21 @@ model Server {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  statuses  ServerStatus[]
-  comments  Comment[]
-  favorites Favorite[]
-  modpacks  Modpack[]
+  statuses     ServerStatus[]
+  comments     Comment[]
+  favorites    Favorite[]
+  modpacks     Modpack[]
+  applications ServerApplication[]
+  invites      ServerInvite[]
+  members      ServerMember[]
+  syncs        WhitelistSync[]
 
   // 未来扩展：
   // channels Channel[]
 
   @@unique([host, port], name: "unique_host_port")
   @@index([status])
+  @@index([status, visibility, discoverable])
   @@index([ownerId])
   @@map("servers")
 }
@@ -141,6 +156,7 @@ model ServerStatus {
   favicon     String?  @db.Text
   version     String?
   error       String?  @db.Text
+  pluginExtra Json?    @map("plugin_extra")
   checkedAt   DateTime @default(now()) @map("checked_at")
 
   server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
@@ -275,16 +291,16 @@ model ModerationLog {
 
 /// 更新日志 —— 管理员发布的平台更新记录
 model Changelog {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
-  content     String   @db.Text
-  type        String   @default("feature") // feature | fix | improvement | other
-  published   Boolean  @default(false)
+  content     String    @db.Text
+  type        String    @default("feature") // feature | fix | improvement | other
+  published   Boolean   @default(false)
   publishedAt DateTime? @map("published_at")
-  authorId    String   @map("author_id")
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  authorId    String    @map("author_id")
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([published, publishedAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
@@ -294,13 +310,92 @@ model Changelog {
 /// 数字 ID 预留表 —— 确保 PSID/UID 删除后不被复用
 model ReservedNumericId {
   id        String   @id @default(cuid())
-  type      String   // "psid" | "uid"
+  type      String // "psid" | "uid"
   numericId Int      @map("numeric_id")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([type, numericId], name: "unique_type_numeric_id")
   @@index([type])
   @@map("reserved_numeric_ids")
+}
+
+/// 玩家入服申请 —— 私域服务器的审核机制
+model ServerApplication {
+  id         String   @id @default(cuid())
+  serverId   String   @map("server_id")
+  userId     String   @map("user_id")
+  status     String   @default("pending") @map("status") // pending | approved | rejected | cancelled
+  formData   Json?    @map("form_data")
+  reviewNote String?  @map("review_note")
+  reviewedBy String?  @map("reviewed_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user     User   @relation("ApplicationUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User?  @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@unique([serverId, userId], name: "unique_server_application")
+  @@index([serverId, status])
+  @@index([userId])
+  @@map("server_applications")
+}
+
+/// 服务器邀请码 —— 用于邀请制入服
+model ServerInvite {
+  id        String    @id @default(cuid())
+  serverId  String    @map("server_id")
+  code      String    @unique
+  createdBy String    @map("created_by")
+  maxUses   Int?      @map("max_uses")
+  usedCount Int       @default(0) @map("used_count")
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  server  Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creator User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+  @@map("server_invites")
+}
+
+/// 服务器成员 —— 已通过审核或邀请的玩家
+model ServerMember {
+  id         String   @id @default(cuid())
+  serverId   String   @map("server_id")
+  userId     String   @map("user_id")
+  joinedVia  String   @map("joined_via") // apply | invite
+  mcUsername String?  @map("mc_username")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  server Server          @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncs  WhitelistSync[]
+
+  @@unique([serverId, userId], name: "unique_server_member")
+  @@index([serverId])
+  @@index([userId])
+  @@map("server_members")
+}
+
+/// 白名单同步记录 —— 追踪每次白名单变更的推送和确认状态
+model WhitelistSync {
+  id            String    @id @default(cuid())
+  serverId      String    @map("server_id")
+  memberId      String    @map("member_id")
+  action        String // add | remove
+  status        String    @default("pending") // pending | pushed | acked | failed
+  retryCount    Int       @default(0) @map("retry_count")
+  lastAttemptAt DateTime? @map("last_attempt_at")
+  ackedAt       DateTime? @map("acked_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  server Server       @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  member ServerMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, status])
+  @@index([memberId])
+  @@map("whitelist_syncs")
 }
 
 // ============================================

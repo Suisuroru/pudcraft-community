@@ -31,6 +31,12 @@ export interface ServerListItem {
   reviewStatus?: string;
   /** 拒绝原因 */
   rejectReason?: string | null;
+  /** Server visibility */
+  visibility?: ServerVisibility;
+  /** Join mode for private servers */
+  joinMode?: ServerJoinMode;
+  /** Whether current user is a member (for address visibility) */
+  isMember?: boolean;
 }
 
 /** 服务器详情（含 content，用于详情页） */
@@ -41,6 +47,12 @@ export interface ServerDetail extends ServerListItem {
   /** 服务器封面图（保留字段，DB 中存 key，API 返回 public URL） */
   imageUrl: string | null;
   favoriteCount: number;
+  /** 非公开服务器是否出现在首页发现列表（仅 owner 可见） */
+  discoverable?: boolean;
+  /** 申请表单配置（仅 owner 可见） */
+  applicationForm?: ApplicationFormField[] | null;
+  /** 是否已生成 API Key（仅 owner 可见） */
+  hasApiKey?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -129,7 +141,11 @@ export type NotificationType =
   | "comment_reply"
   | "server_online"
   | "server_approved"
-  | "server_rejected";
+  | "server_rejected"
+  | "application_approved"
+  | "application_rejected"
+  | "member_removed"
+  | "whitelist_sync_failed";
 
 /** 单条通知数据 */
 export interface NotificationItem {
@@ -291,4 +307,91 @@ export interface AdminChangelogItem {
   authorName: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// ─── 私有服务器类型 ──────────────────────────────
+
+export type ServerVisibility = "public" | "private" | "unlisted";
+export type ServerJoinMode = "open" | "apply" | "invite" | "apply_and_invite";
+export type ApplicationStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type SyncStatus = "pending" | "pushed" | "acked" | "failed";
+
+/** Application form field configuration */
+export interface ApplicationFormField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "multiselect";
+  required: boolean;
+  options?: string[];
+  placeholder?: string;
+}
+
+/** Server application list item */
+export interface ServerApplicationItem {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userImage: string | null;
+  mcUsername: string;
+  status: ApplicationStatus;
+  formData: Record<string, string | string[]> | null;
+  reviewNote: string | null;
+  reviewerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Server invite list item */
+export interface ServerInviteItem {
+  id: string;
+  code: string;
+  creatorName: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+/** Server member list item */
+export interface ServerMemberItem {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userImage: string | null;
+  mcUsername: string | null;
+  joinedVia: "apply" | "invite";
+  createdAt: string;
+  syncStatus: SyncStatus | null;
+}
+
+/** Whitelist sync record */
+export interface WhitelistSyncItem {
+  id: string;
+  memberId: string;
+  mcUsername: string | null;
+  action: "add" | "remove";
+  status: SyncStatus;
+  retryCount: number;
+  lastAttemptAt: string | null;
+  ackedAt: string | null;
+  createdAt: string;
+}
+
+/** Sync status overview (for console) */
+export interface SyncStatusOverview {
+  connected: boolean;
+  pendingCount: number;
+  failedCount: number;
+  lastAckedAt: string | null;
+  recentSyncs: WhitelistSyncItem[];
+}
+
+/** Membership status (for player) */
+export interface MembershipStatus {
+  isMember: boolean;
+  application: {
+    id: string;
+    status: ApplicationStatus;
+    createdAt: string;
+  } | null;
 }
