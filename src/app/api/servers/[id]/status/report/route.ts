@@ -4,10 +4,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { authenticatePlugin } from "@/lib/plugin-auth";
+import { getRedisConnection } from "@/lib/redis";
 import { resolveServerCuid } from "@/lib/lookup";
 import { serverLookupIdSchema, statusReportSchema } from "@/lib/validation";
 
 import type { Prisma } from "@prisma/client";
+
+const PLUGIN_CONNECTED_TTL = 60;
 
 /**
  * POST /api/servers/:id/status/report
@@ -35,6 +38,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body: unknown = await request.json().catch(() => null);
     const parsed = statusReportSchema.safeParse(body);
     if (!parsed.success) {
+      logger.warn("[api/servers/[id]/status/report] Validation failed", {
+        body,
+        errors: parsed.error.flatten(),
+      });
       return NextResponse.json(
         { error: "校验失败", details: parsed.error.flatten() },
         { status: 400 },
@@ -53,6 +60,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         ...(memoryMax !== undefined && { memoryMax }),
       };
     }
+
+    // Refresh plugin connected status in Redis
+    const redis = getRedisConnection();
+    await redis.set(`plugin:connected:${cuid}`, "1", "EX", PLUGIN_CONNECTED_TTL);
 
     // Check previous online status for notification
     const previousStatus = await prisma.server.findUnique({

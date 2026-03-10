@@ -10,10 +10,12 @@ import { getRedisConnectionOptions } from "../lib/redis-config";
 const WHITELIST_CHANNEL = "whitelist:change";
 const WS_PORT = Number(process.env.WS_PORT) || 3001;
 const HEARTBEAT_INTERVAL = 30_000;
+const PLUGIN_CONNECTED_TTL = 60;
 
 const prisma = new PrismaClient();
 const redisOptions = getRedisConnectionOptions();
 const subscriber = new Redis(redisOptions);
+const publisher = new Redis(redisOptions);
 
 // Track liveness per socket
 const alive = new WeakMap<WebSocket, boolean>();
@@ -79,8 +81,12 @@ wss.on("connection", (ws: WebSocket, _req: unknown, serverId: string) => {
   addConnection(serverId, ws);
   alive.set(ws, true);
 
+  // Set plugin connected status on connection and refresh on each pong
+  publisher.set(`plugin:connected:${serverId}`, "1", "EX", PLUGIN_CONNECTED_TTL).catch(() => {});
+
   ws.on("pong", () => {
     alive.set(ws, true);
+    publisher.set(`plugin:connected:${serverId}`, "1", "EX", PLUGIN_CONNECTED_TTL).catch(() => {});
   });
 
   ws.on("close", () => {
@@ -151,6 +157,8 @@ function shutdown() {
     .unsubscribe(WHITELIST_CHANNEL)
     .then(() => subscriber.quit())
     .catch((err) => console.error("[ws] Redis cleanup error:", err));
+
+  publisher.quit().catch((err) => console.error("[ws] Redis publisher cleanup error:", err));
 
   wss.close(() => {
     httpServer.close(() => {
