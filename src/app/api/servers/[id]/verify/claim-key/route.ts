@@ -102,15 +102,11 @@ export async function POST(
 
     const server = await prisma.server.findUnique({
       where: { id: cuid },
-      select: { isVerified: true },
+      select: { isVerified: true, ownerId: true },
     });
 
     if (!server) {
       return NextResponse.json({ error: "服务器未找到" }, { status: 404 });
-    }
-
-    if (server.isVerified) {
-      return NextResponse.json({ error: "服务器已被认领" }, { status: 409 });
     }
 
     const { raw, hash } = generateApiKey();

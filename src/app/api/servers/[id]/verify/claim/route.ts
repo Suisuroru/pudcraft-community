@@ -93,10 +93,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "未授权" }, { status: 401 });
     }
 
-    if (server.isVerified) {
-      return NextResponse.json({ error: "服务器已被认领" }, { status: 409 });
-    }
-
     // ── 场景 1: 认领密钥流程（有 verifyUserId）──
     if (server.verifyUserId) {
       if (!server.verifyExpiresAt || server.verifyExpiresAt < new Date()) {

@@ -417,9 +417,9 @@ export default function ServerVerifyPage() {
           认领通过后你将成为该服务器管理员，并获得「已认领」标识。
         </p>
 
-        {isManagedByAnotherUser && !verifyState.isVerified && (
+        {isManagedByAnotherUser && (
           <div className="m3-alert-error mt-4">
-            该服务器目前由其他用户管理。认领成功后你将成为新的管理员。
+            该服务器已被其他用户认领。你可以通过验证服务器所有权来重新认领。
           </div>
         )}
 
@@ -438,10 +438,6 @@ export default function ServerVerifyPage() {
                 前往控制台
               </Link>
             </div>
-          </div>
-        ) : verifyState.isVerified ? (
-          <div className="mt-6">
-            <div className="m3-alert-error">该服务器已被其他用户认领。</div>
           </div>
         ) : (
           <>
