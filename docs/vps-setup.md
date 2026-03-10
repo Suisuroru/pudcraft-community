@@ -116,7 +116,7 @@ SMTP_PASS=
 SMTP_FROM=
 
 # WebSocket（插件白名单同步）
-WS_PUBLIC_URL=wss://你的域名/ws
+WS_PUBLIC_URL=wss://你的域名
 ```
 
 ## 5. 首次部署
