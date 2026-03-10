@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { logger } from "@/lib/logger";
 import { resolveServerCuid } from "@/lib/lookup";
 import { publishWhitelistChange } from "@/lib/whitelist-pubsub";
@@ -18,6 +19,10 @@ interface RouteContext {
  */
 export async function POST(request: Request, { params }: RouteContext) {
   try {
+    if (!isPrivateServersEnabled()) {
+      return NextResponse.json({ error: "该功能未启用" }, { status: 404 });
+    }
+
     const authResult = await requireActiveUser();
     if (isActiveUserError(authResult)) {
       return authResult.response;

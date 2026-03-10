@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { logger } from "@/lib/logger";
 import { getRedisConnection } from "@/lib/redis";
 import { resolveServerCuid } from "@/lib/lookup";
@@ -17,6 +18,10 @@ import type { SyncStatusOverview, WhitelistSyncItem } from "@/lib/types";
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!isPrivateServersEnabled()) {
+      return NextResponse.json({ error: "该功能未启用" }, { status: 404 });
+    }
+
     const authResult = await requireActiveUser();
     if (isActiveUserError(authResult)) {
       return authResult.response;

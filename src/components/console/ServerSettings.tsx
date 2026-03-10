@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isPrivateServersEnabled } from "@/lib/features";
 import type {
   ApplicationFormField,
   ServerJoinMode,
@@ -105,6 +106,8 @@ export function ServerSettings({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const privateServersEnabled = isPrivateServersEnabled();
 
   // Reset joinMode and discoverable when switching to public
   useEffect(() => {
@@ -250,6 +253,10 @@ export function ServerSettings({
       setIsSaving(false);
     }
   }, [visibility, discoverable, joinMode, formFields, serverId, showJoinModeSelector, showApplicationForm, onSaved]);
+
+  if (!privateServersEnabled) {
+    return null;
+  }
 
   return (
     <section className="m3-surface p-4 sm:p-5">

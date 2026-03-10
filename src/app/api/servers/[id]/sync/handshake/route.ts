@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { logger } from "@/lib/logger";
 import { authenticatePlugin } from "@/lib/plugin-auth";
 import { getRedisConnection } from "@/lib/redis";
@@ -19,6 +20,10 @@ const PLUGIN_CONNECTED_TTL = 60;
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!isPrivateServersEnabled()) {
+      return NextResponse.json({ error: "该功能未启用" }, { status: 404 });
+    }
+
     const { id } = await params;
     const parsedId = serverLookupIdSchema.safeParse(id);
     if (!parsedId.success) {

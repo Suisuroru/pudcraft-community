@@ -8,6 +8,7 @@ import { ApiKeyManager } from "@/components/console/ApiKeyManager";
 import { ApplicationList } from "@/components/console/ApplicationList";
 import { InviteManager } from "@/components/console/InviteManager";
 import { MemberList } from "@/components/console/MemberList";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { PeakHours } from "@/components/console/PeakHours";
 import { PlayerChart } from "@/components/console/PlayerChart";
 import { RecentComments } from "@/components/console/RecentComments";
@@ -424,19 +425,19 @@ export default function ConsoleServerPage() {
         onSaved={fetchServer}
       />
 
-      {(server.joinMode === "apply" || server.joinMode === "apply_and_invite") && (
+      {isPrivateServersEnabled() && (server.joinMode === "apply" || server.joinMode === "apply_and_invite") && (
         <ApplicationList serverId={String(server.psid)} />
       )}
 
-      {(server.joinMode === "invite" || server.joinMode === "apply_and_invite") && (
+      {isPrivateServersEnabled() && (server.joinMode === "invite" || server.joinMode === "apply_and_invite") && (
         <InviteManager serverId={String(server.psid)} serverPsid={server.psid} />
       )}
 
-      {server.visibility !== "public" && (
+      {isPrivateServersEnabled() && server.visibility !== "public" && (
         <MemberList serverId={String(server.psid)} />
       )}
 
-      {server.visibility !== "public" && (
+      {isPrivateServersEnabled() && server.visibility !== "public" && (
         <>
           <ApiKeyManager
             serverId={String(server.psid)}
