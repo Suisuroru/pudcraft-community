@@ -5,6 +5,7 @@ import { isActiveUserError, requireActiveUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resolveServerCuid } from "@/lib/lookup";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { serverLookupIdSchema, updateServerSettingsSchema } from "@/lib/validation";
 
 /**
@@ -59,6 +60,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const { visibility, discoverable, joinMode, applicationForm } = parsed.data;
+
+    if (!isPrivateServersEnabled()) {
+      if (visibility && visibility !== "public") {
+        return NextResponse.json({ error: "私密服务器功能未启用" }, { status: 403 });
+      }
+      if (joinMode && joinMode !== "open") {
+        return NextResponse.json({ error: "私密服务器功能未启用" }, { status: 403 });
+      }
+    }
 
     const updateData: Record<string, unknown> = {};
     if (visibility !== undefined) {

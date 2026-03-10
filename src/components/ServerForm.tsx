@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MarkdownEditor, type MarkdownEditorHandle } from "@/components/MarkdownEditor";
 import { useToast } from "@/hooks/useToast";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { createServerSchema } from "@/lib/validation";
 
 const SERVER_TAGS = [
@@ -477,7 +478,7 @@ export function ServerForm({ mode, initialData, cancelHref, onSubmit }: ServerFo
           </label>
         </div>
 
-        {mode === "create" && (
+        {mode === "create" && isPrivateServersEnabled() && (
           <div>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300">
               <input

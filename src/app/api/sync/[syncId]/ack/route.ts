@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { isPrivateServersEnabled } from "@/lib/features";
 import { logger } from "@/lib/logger";
 import { hashApiKey } from "@/lib/api-key";
 import { serverIdSchema } from "@/lib/validation";
@@ -13,6 +14,10 @@ import { serverIdSchema } from "@/lib/validation";
  */
 export async function POST(request: Request, { params }: { params: Promise<{ syncId: string }> }) {
   try {
+    if (!isPrivateServersEnabled()) {
+      return NextResponse.json({ error: "该功能未启用" }, { status: 404 });
+    }
+
     const { syncId } = await params;
 
     const parsedSyncId = serverIdSchema.safeParse(syncId);
