@@ -61,8 +61,8 @@ export default async function ConsoleLayout({ children }: ConsoleLayoutProps) {
     <div className="min-h-[calc(100vh-10rem)]">
       <div className="m3-surface mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
-          <p className="text-sm font-semibold text-slate-900">PudCraft Community</p>
-          <p className="text-xs text-slate-500">服主控制台</p>
+          <p className="text-sm font-semibold text-warm-700">PudCraft Community</p>
+          <p className="text-xs text-warm-500">服主控制台</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -78,7 +78,7 @@ export default async function ConsoleLayout({ children }: ConsoleLayoutProps) {
               name={session?.user?.name}
               email={session?.user?.email}
               className="h-6 w-6"
-              fallbackClassName="bg-teal-600 text-white"
+              fallbackClassName="bg-gradient-to-br from-coral to-coral-amber text-white"
             />
             <span className="max-w-24 truncate text-xs">{displayName}</span>
           </Link>

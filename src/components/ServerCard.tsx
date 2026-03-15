@@ -11,6 +11,8 @@ interface ServerCardProps {
   initialFavorited?: boolean;
   showFavoriteButton?: boolean;
   onFavoriteChange?: (serverId: string, favorited: boolean) => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 /**
@@ -22,6 +24,8 @@ export function ServerCard({
   initialFavorited,
   showFavoriteButton = true,
   onFavoriteChange,
+  className,
+  style,
 }: ServerCardProps) {
   const {
     name,
@@ -63,166 +67,101 @@ export function ServerCard({
   return (
     <Link
       href={`/servers/${server.psid}`}
-      className="m3-surface group block cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:border-slate-300 sm:p-5"
+      className={`group relative block overflow-hidden rounded-2xl border border-[#E8DDD4] bg-[#FFFAF6] transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(139,69,51,0.12)] animate-card-in${className ? ` ${className}` : ""}`}
+      style={style}
     >
-      {/* 1. 名称 + 在线状态 */}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className="inline-flex h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+      {/* 顶部渐变条 */}
+      <div className="h-1 bg-gradient-to-r from-[#D4715E] to-[#D4956A] opacity-60 transition-opacity group-hover:opacity-100" />
+
+      <div className="p-5">
+        {/* 1. 图标 + 名称 + 状态 */}
+        <div className="mb-4 flex items-start gap-3.5">
+          <span className="relative inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-xl shadow-sm shadow-[#8B4533]/8">
             <Image
               src={iconUrl || "/default-server-icon.png"}
               alt={`${name} 图标`}
-              width={56}
-              height={56}
+              width={48}
+              height={48}
               className="h-full w-full object-cover"
             />
+            {/* 在线状态点 */}
+            {!isStale && (
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#FFFAF6] ${
+                  isOnline ? "bg-[#5B9A6E]" : "bg-[#9C8577]"
+                }`}
+              />
+            )}
           </span>
 
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-semibold text-slate-900 transition-colors group-hover:text-slate-700">
-              {name}
-            </h3>
-            <div className="flex flex-wrap items-center gap-1">
-              {isVerified && (
-                <span
-                  className="inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-teal-100"
-                  title="已认领 - 管理员已验证"
-                >
-                  ✓ 已认领
-                </span>
-              )}
-              {isUnlisted && (
-                <span
-                  className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200"
-                  title="半公开服务器 - 地址需申请后可见"
-                >
-                  需申请
-                </span>
-              )}
-              {showApplyBadge && (
-                <span
-                  className="inline-flex items-center gap-0.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200"
-                  title="申请制 - 需要提交申请加入"
-                >
-                  <svg
-                    className="h-3 w-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                  申请制
-                </span>
-              )}
-              {showInviteBadge && (
-                <span
-                  className="inline-flex items-center gap-0.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200"
-                  title="邀请制 - 需要邀请链接加入"
-                >
-                  <svg
-                    className="h-3 w-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                  </svg>
-                  邀请制
-                </span>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="truncate text-[15px] font-bold text-[#4A3728] transition-colors group-hover:text-[#D4715E]">
+                {name}
+              </h3>
+              {showFavoriteButton && (
+                <FavoriteButton
+                  serverId={server.id}
+                  size="sm"
+                  initialFavorited={initialFavorited}
+                  onChange={(favorited) => {
+                    onFavoriteChange?.(server.id, favorited);
+                  }}
+                />
               )}
             </div>
+            {/* 地址 */}
+            {isAddressHidden ? (
+              <p className="mt-0.5 text-xs text-[#9C8577] italic">地址隐藏</p>
+            ) : (
+              <p className="mt-0.5 break-all font-mono text-xs text-[#7A6B5F]">
+                {host}
+                {port !== 25565 ? `:${port}` : ""}
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {showFavoriteButton && (
-            <FavoriteButton
-              serverId={server.id}
-              size="sm"
-              initialFavorited={initialFavorited}
-              onChange={(favorited) => {
-                onFavoriteChange?.(server.id, favorited);
-              }}
-            />
-          )}
-          <span className="flex items-center gap-1.5 text-xs">
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                isStale
-                  ? "bg-slate-300"
-                  : isOnline
-                    ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.35)]"
-                    : "bg-slate-400"
-              }`}
-            />
-            <span
-              className={
-                isStale ? "text-slate-400" : isOnline ? "text-emerald-600" : "text-slate-500"
-              }
-            >
-              {statusText}
+
+        {/* 2. 描述 */}
+        {description && (
+          <p className="mb-4 line-clamp-2 text-[13px] leading-relaxed text-[#4A3728]">{description}</p>
+        )}
+
+        {/* 3. 底部信息栏 */}
+        <div className="flex items-center justify-between gap-2">
+          {/* 标签 */}
+          <div className="flex min-w-0 flex-wrap gap-1.5">
+            {tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-md bg-[#FBEEE6] px-2 py-0.5 text-[11px] font-semibold text-[#8B4533]"
+              >
+                {tag}
+              </span>
+            ))}
+            {tags.length > 3 && (
+              <span className="rounded-md bg-[#FBEEE6] px-2 py-0.5 text-[11px] font-semibold text-[#9C8577]">
+                +{tags.length - 3}
+              </span>
+            )}
+            {isVerified && (
+              <span className="rounded-md bg-[#D4715E]/10 px-2 py-0.5 text-[11px] font-semibold text-[#D4715E]">
+                ✓ 已认领
+              </span>
+            )}
+          </div>
+
+          {/* 在线人数 */}
+          {!isStale && isOnline && (
+            <span className="shrink-0 text-xs font-semibold text-[#5B9A6E]">
+              {status.playerCount}/{status.maxPlayers}
             </span>
-          </span>
+          )}
+          {(isStale || !isOnline) && (
+            <span className="shrink-0 text-xs text-[#9C8577]">{statusText}</span>
+          )}
         </div>
       </div>
-
-      {/* 2. 服务器地址 */}
-      {isAddressHidden ? (
-        <p className="mb-2 text-xs text-slate-400 italic">地址隐藏</p>
-      ) : (
-        <p className="mb-2 break-all font-mono text-xs text-slate-500">
-          {host}
-          {port !== 25565 ? `:${port}` : ""}
-        </p>
-      )}
-
-      {/* 3. 简短描述（最多 2 行） */}
-      {description && (
-        <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-slate-600">{description}</p>
-      )}
-
-      {/* 4. 在线人数 + 延迟 */}
-      {!isStale && isOnline && (
-        <div className="mb-3 flex items-center gap-3 text-xs">
-          <span className="text-slate-600">
-            <span className="font-medium text-slate-800">{status.playerCount}</span>
-            <span> / {status.maxPlayers} 在线</span>
-          </span>
-          {pingMs !== null && (
-            <span
-              className={
-                pingMs < 50 ? "text-emerald-600" : pingMs < 100 ? "text-amber-600" : "text-rose-600"
-              }
-            >
-              {pingMs}ms
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* 5. 标签 Chips */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
     </Link>
   );
 }
