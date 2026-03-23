@@ -147,8 +147,8 @@ const getServerPageData = cache(async (rawId: string) => {
         joinMode: true,
       },
     }),
-    prisma.comment.count({ where }),
-    prisma.comment.findMany({
+    prisma.serverComment.count({ where }),
+    prisma.serverComment.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: COMMENTS_PAGE_SIZE,
@@ -369,16 +369,12 @@ export default async function ServerDetailPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: serializeJsonForScript(gameServerSchema) }}
       />
 
-      <nav className="mb-6 flex items-center gap-2 text-sm text-warm-400">
-        <Link href="/" className="m3-link">
-          &larr; 返回
+      <nav className="mb-6 flex items-center gap-2 text-sm text-warm-500">
+        <Link href="/servers" className="m3-link">
+          &larr; 服务器
         </Link>
         <span>/</span>
-        <Link href="/" className="m3-link">
-          首页
-        </Link>
-        <span>/</span>
-        <span className="text-warm-500">服务器详情</span>
+        <span className="text-warm-700">服务器详情</span>
       </nav>
 
       <section className="m3-surface mb-6 p-4 sm:p-6">

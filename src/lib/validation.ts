@@ -435,6 +435,155 @@ export type StatusReportInput = z.infer<typeof statusReportSchema>;
 export type QueryApplicationsInput = z.infer<typeof queryApplicationsSchema>;
 export type QueryMembersInput = z.infer<typeof queryMembersSchema>;
 
+// ─── 论坛 Schema ──────────────────────────────
+
+/** 圈子 slug 校验（小写字母、数字、连字符，不能以连字符开头或结尾） */
+export const circleSlugSchema = z
+  .string()
+  .trim()
+  .min(2, "至少 2 个字符")
+  .max(30, "最多 30 个字符")
+  .regex(
+    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/,
+    "只能包含小写字母、数字和连字符，不能以连字符开头或结尾",
+  );
+
+/** 创建圈子请求体 */
+export const createCircleSchema = z.object({
+  name: z.string().trim().min(1, "请输入圈子名称").max(50, "最多 50 个字符"),
+  slug: circleSlugSchema,
+  description: z.string().trim().max(500, "最多 500 个字符").optional(),
+});
+
+/** 更新圈子请求体 */
+export const updateCircleSchema = z.object({
+  name: z.string().trim().min(1).max(50).optional(),
+  description: z.string().trim().max(500).optional(),
+  icon: z.string().url().optional().nullable(),
+  banner: z.string().url().optional().nullable(),
+});
+
+/** 创建板块请求体 */
+export const createSectionSchema = z.object({
+  name: z.string().trim().min(1, "请输入板块名称").max(30, "最多 30 个字符"),
+  description: z.string().trim().max(200, "最多 200 个字符").optional(),
+  sortOrder: z.number().int().min(0).default(0),
+});
+
+/** 更新板块请求体 */
+export const updateSectionSchema = z.object({
+  name: z.string().trim().min(1).max(30).optional(),
+  description: z.string().trim().max(200).optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+/** 创建帖子请求体 */
+export const createPostSchema = z.object({
+  title: z.string().trim().max(100, "标题最多 100 个字符").optional().default(""),
+  content: z.string().trim().min(1, "请输入内容").max(50000, "内容最多 50000 个字符"),
+  circleId: z.string().cuid().optional().nullable(),
+  sectionId: z.string().cuid().optional().nullable(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(5).optional().default([]),
+  images: z.array(z.string().url().max(500)).max(9).optional().default([]),
+});
+
+/** 更新帖子请求体 */
+export const updatePostSchema = z.object({
+  title: z.string().trim().min(1).max(100).optional(),
+  content: z.string().trim().min(1).max(50000).optional(),
+  sectionId: z.string().cuid().optional().nullable(),
+});
+
+/** 发表论坛评论/回复请求体 */
+export const createForumCommentSchema = z.object({
+  content: z.string().trim().min(1, "请输入评论内容").max(5000, "评论最多 5000 个字符"),
+  parentCommentId: z.string().cuid().optional().nullable(),
+});
+
+/** 圈子封禁用户请求体 */
+export const createCircleBanSchema = z.object({
+  userId: z.string().cuid(),
+  reason: z.string().trim().max(500).optional(),
+  expiresAt: z.string().datetime().optional().nullable(),
+});
+
+/** 帖子 Feed 查询参数 */
+export const feedQuerySchema = z.object({
+  cursor: z.string().cuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  circleId: z.string().cuid().optional(),
+  sectionId: z.string().cuid().optional(),
+  authorId: z.string().cuid().optional(),
+});
+
+/** 圈子列表查询参数 */
+export const circleListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  search: z.string().trim().max(100).optional(),
+  sort: z.enum(["popular", "newest"]).default("popular"),
+});
+
+/** 论坛评论列表查询参数 */
+export const commentQuerySchema = z.object({
+  cursor: z.string().cuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
+});
+
+// ─── 论坛类型导出 ─────────────────────────────
+
+export type CreateCircleInput = z.infer<typeof createCircleSchema>;
+export type UpdateCircleInput = z.infer<typeof updateCircleSchema>;
+export type CreateSectionInput = z.infer<typeof createSectionSchema>;
+export type UpdateSectionInput = z.infer<typeof updateSectionSchema>;
+export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
+export type CreateForumCommentInput = z.infer<typeof createForumCommentSchema>;
+export type CreateCircleBanInput = z.infer<typeof createCircleBanSchema>;
+
+// ─── 管理后台话题 Schema ─────────────────────────
+
+/** 管理后台话题列表查询参数 */
+export const adminQueryTagsSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  search: z.string().max(100).optional(),
+});
+
+/** 管理后台更新话题请求体 */
+export const adminUpdateTagSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "名称不能为空")
+    .max(50, "最多 50 个字符")
+    .transform((v) => v.toLowerCase())
+    .optional(),
+  displayName: z.string().trim().min(1, "显示名称不能为空").max(50, "最多 50 个字符").optional(),
+  aliases: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+});
+
+/** 管理后台合并话题请求体 */
+export const adminMergeTagsSchema = z.object({
+  sourceId: z.string().cuid(),
+  targetId: z.string().cuid(),
+});
+
+/** 搜索查询参数 */
+export const searchQuerySchema = z.object({
+  q: z.string().trim().min(1, "搜索关键词不能为空").max(100),
+  cursor: z.string().cuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type FeedQueryInput = z.infer<typeof feedQuerySchema>;
+export type CircleListQueryInput = z.infer<typeof circleListQuerySchema>;
+export type CommentQueryInput = z.infer<typeof commentQuerySchema>;
+export type SearchQueryInput = z.infer<typeof searchQuerySchema>;
+export type AdminQueryTagsInput = z.infer<typeof adminQueryTagsSchema>;
+export type AdminUpdateTagInput = z.infer<typeof adminUpdateTagSchema>;
+export type AdminMergeTagsInput = z.infer<typeof adminMergeTagsSchema>;
+
 // ─── 举报 ───
 
 export const reportCategoryEnum = z.enum([
